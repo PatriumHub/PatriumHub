@@ -2,7 +2,7 @@
 $tabs = [
     'resumen' => 'Resumen',
     'cuentas' => 'Cuentas',
-    'activos' => 'Activos',
+    'activos' => 'Activos varios',
     'pasivos' => 'Pasivos',
     'propiedades' => 'Propiedades',
     'inventario' => 'Inventario',
@@ -25,6 +25,14 @@ $net = (float) ($summary['net_worth'] ?? 0);
             <p class="lede"><?= e($company['legal_name'] ?? 'Empresa') ?><?= $company['industry'] ? ' · ' . e($company['industry']) : '' ?></p>
         </div>
         <div class="actions">
+            <form method="post" action="<?= e(url('/dashboard/snapshot')) ?>" class="inline">
+                <?= csrf_field() ?>
+                <input type="hidden" name="mode" value="entity">
+                <input type="hidden" name="entity_id" value="<?= (int) $company['id'] ?>">
+                <input type="hidden" name="currency" value="<?= e($currency) ?>">
+                <input type="hidden" name="redirect_to" value="<?= e($companyPath . '?tab=' . urlencode((string) $tab) . '&currency=' . urlencode($currency)) ?>">
+                <button type="submit" class="btn ghost">Capturar snapshot</button>
+            </form>
             <a class="btn ghost" href="<?= e(url($companyPath . '/editar')) ?>">Editar</a>
             <a class="btn ghost" href="<?= e(url('/empresas')) ?>">Volver</a>
         </div>
@@ -192,11 +200,10 @@ $net = (float) ($summary['net_worth'] ?? 0);
         // Resumen: histórico completo (no el recorte de 12m del gráfico WC).
         $wcSales = (float) ($extras['sales'] ?? 0);
         $mpSales = (float) ($extras['mp_sales'] ?? 0);
-        $enCaja = (float) ($extras['en_caja'] ?? 0);
         $salesTotal = (float) ($extras['sales_total'] ?? ($wcSales + $mpSales));
         $companyAccounts = $companyAccounts ?? [];
         $enCajaSeries = $enCajaSeries ?? ['labels' => [], 'sales' => [], 'total_sales' => 0.0];
-        $compLabels = ['Cuentas', 'Activos', 'Propiedades', 'Cobrables', 'Inventario'];
+        $compLabels = ['Cuentas', 'Activos varios', 'Propiedades', 'Cobrables', 'Inventario'];
         $compValues = [
             (float) ($summary['accounts'] ?? 0),
             (float) ($summary['assets'] ?? 0),
@@ -214,10 +221,9 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 'routes' => ['/cuentas', '/activos', '/propiedades', '/cobrables', '/inventario'],
             ],
             'companyExtras' => [
-                'labels' => ['Bancos/líquido', 'En caja', 'Saldo MP', 'Stock'],
+                'labels' => ['Bancos/líquido', 'Saldo MP', 'Stock'],
                 'values' => [
                     (float) $extras['cash'],
-                    $enCaja,
                     (float) $extras['mp'],
                     (float) $extras['inventory'],
                 ],
@@ -299,14 +305,10 @@ $net = (float) ($summary['net_worth'] ?? 0);
         </div>
 
         <div class="company-section">
-            <div class="stat-row">
+            <div class="stat-row cols-3">
                 <div class="stat tone-green">
                     <span class="stat-label">Bancos / líquido</span>
                     <span class="stat-value"><?= e(money($extras['cash'], $currency)) ?></span>
-                </div>
-                <div class="stat tone-coral">
-                    <span class="stat-label">En caja</span>
-                    <span class="stat-value"><?= e(money($enCaja, $currency)) ?></span>
                 </div>
                 <div class="stat tone-blue">
                     <span class="stat-label">Saldo Mercado Pago</span>
@@ -320,23 +322,19 @@ $net = (float) ($summary['net_worth'] ?? 0);
         </div>
 
         <div class="company-section">
-            <div class="stat-row">
+            <div class="stat-row cols-3">
                 <div class="stat tone-amber">
                     <span class="stat-label">Ventas WooCommerce</span>
                     <span class="stat-value" style="font-size:1.25rem"><?= e(money($wcSales, $currency)) ?></span>
                 </div>
                 <div class="stat tone-teal">
-                    <span class="stat-label">Órdenes WC</span>
+                    <span class="stat-label">Pedidos e-commerce</span>
                     <span class="stat-value" style="font-size:1.25rem"><?= (int) ($extras['orders'] ?? 0) ?></span>
                 </div>
-                <div class="stat tone-amber">
-                    <span class="stat-label">Total ventas</span>
-                    <span class="stat-value" style="font-size:1.25rem"><?= e(money($wcSales, $currency)) ?></span>
-                </div>
                 <div class="stat tone-blue">
-                    <span class="stat-label">Dashboard MP</span>
+                    <span class="stat-label">Cuentas</span>
                     <span class="stat-value" style="font-size:1.1rem">
-                        <a href="<?= e(url('/dashboard/mercadopago?entity_id=' . (int) $company['id'] . '&currency=' . urlencode($currency))) ?>">Ver saldos →</a>
+                        <a href="<?= e(url('/cuentas?entity_id=' . (int) $company['id'] . '&currency=' . urlencode($currency))) ?>">Ver saldos →</a>
                     </span>
                 </div>
             </div>
@@ -347,8 +345,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 <h2 style="margin:0">Movimiento de caja</h2>
             </div>
             <p class="muted" style="margin-top:0">
-                Ingreso o egreso de billetes asociado a una cuenta. El patrimonio suma solo el saldo de esa cuenta (sin doble conteo).
-                “En caja” muestra el saldo de cuentas tipo <strong>Efectivo</strong>.
+                Ingreso o egreso asociado a una cuenta. El saldo y el patrimonio se actualizan en esa cuenta (Bancos / líquido, MP, etc.).
             </p>
             <?php if ($companyAccounts === []): ?>
                 <p class="muted">

@@ -23,6 +23,7 @@
   const bootCharts = () => {
     const node = document.getElementById('dashboard-charts')
       || document.getElementById('company-charts')
+      || document.getElementById('accounts-charts')
       || document.getElementById('mp-dashboard-charts');
     if (!node || typeof Chart === 'undefined') return;
     let data;
@@ -526,6 +527,49 @@
     makeSalesBar(document.getElementById('chartMpSales'), data.mpSales, '#5b8def');
     makeSalesBar(document.getElementById('chartCashSales'), data.cashSales, '#fb923c');
 
+    const accountsByType = document.getElementById('chartAccountsByType');
+    if (accountsByType && data.byType) {
+      new Chart(accountsByType, {
+        type: 'doughnut',
+        data: {
+          labels: data.byType.labels,
+          datasets: [{
+            data: data.byType.values,
+            backgroundColor: colors,
+            borderWidth: 0,
+            hoverOffset: 8,
+          }],
+        },
+        options: doughnutOpts,
+      });
+    }
+
+    const accountsByEntity = document.getElementById('chartAccountsByEntity');
+    if (accountsByEntity && data.byEntity) {
+      new Chart(accountsByEntity, {
+        type: 'bar',
+        data: {
+          labels: data.byEntity.labels,
+          datasets: [{
+            label: 'Saldo',
+            data: data.byEntity.values,
+            backgroundColor: '#5b8def',
+            borderRadius: 8,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: tick, callback: moneyTick }, grid: { color: grid }, beginAtZero: true },
+            y: { ticks: { color: '#e8eaef' }, grid: { display: false } },
+          },
+        },
+      });
+    }
+
     const mpByAccount = document.getElementById('chartMpByAccount');
     if (mpByAccount && data.byAccount) {
       new Chart(mpByAccount, {
@@ -551,16 +595,18 @@
       });
     }
 
-    const mpByEntity = document.getElementById('chartMpByEntity');
-    if (mpByEntity && data.byEntity) {
+    const mpByEntity = document.getElementById('chartMpByEntity')
+      || document.getElementById('chartAccountsMpByEntity');
+    const mpEntitySeries = data.mpByEntity || (document.getElementById('chartMpByEntity') ? data.byEntity : null);
+    if (mpByEntity && mpEntitySeries) {
       new Chart(mpByEntity, {
         type: 'bar',
         data: {
-          labels: data.byEntity.labels,
+          labels: mpEntitySeries.labels,
           datasets: [{
             label: 'Saldo',
-            data: data.byEntity.values,
-            backgroundColor: '#5b8def',
+            data: mpEntitySeries.values,
+            backgroundColor: '#c084fc',
             borderRadius: 8,
           }],
         },

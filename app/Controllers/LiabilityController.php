@@ -13,9 +13,37 @@ final class LiabilityController
              INNER JOIN entities e ON e.id = l.entity_id
              ORDER BY l.status, l.name"
         )->fetchAll();
+
+        BudgetService::ensurePeriod(date('Y-m'));
+        $budgetPending = Database::pdo()->query(
+            "SELECT i.*, e.name AS entity_name, e.type AS entity_type
+             FROM budget_items i
+             INNER JOIN entities e ON e.id = i.entity_id
+             WHERE i.status = 'pending' AND i.include_in_net_worth = 1
+             ORDER BY e.type, e.name, i.due_date, i.name"
+        )->fetchAll();
+
+        $budgetGroups = [];
+        foreach ($budgetPending as $row) {
+            $eid = (int) $row['entity_id'];
+            if (!isset($budgetGroups[$eid])) {
+                $budgetGroups[$eid] = [
+                    'entity_id' => $eid,
+                    'entity_name' => (string) ($row['entity_name'] ?? ''),
+                    'entity_type' => (string) ($row['entity_type'] ?? 'company'),
+                    'items' => [],
+                    'total' => 0.0,
+                    'currency_code' => (string) ($row['currency_code'] ?? 'ARS'),
+                ];
+            }
+            $budgetGroups[$eid]['items'][] = $row;
+            $budgetGroups[$eid]['total'] += (float) ($row['amount'] ?? 0);
+        }
+
         view('liabilities/index', [
             'title' => 'Pasivos',
             'rows' => $rows,
+            'budgetGroups' => array_values($budgetGroups),
             'success' => flash('success'),
             'error' => flash('error'),
         ]);

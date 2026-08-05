@@ -83,7 +83,7 @@
             <p class="mt">
                 <a class="btn" href="<?= e(url('/dashboard')) ?>">Dashboard</a>
                 <a class="btn ghost" href="<?= e(url('/participaciones')) ?>">Participaciones</a>
-                <a class="btn ghost" href="<?= e(url('/dashboard/mercadopago')) ?>">Mercado Pago</a>
+                <a class="btn ghost" href="<?= e(url('/cuentas')) ?>">Cuentas</a>
             </p>
         </div>
     </div>

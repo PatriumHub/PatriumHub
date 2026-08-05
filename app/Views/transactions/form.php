@@ -1,8 +1,12 @@
 <section class="page">
     <div class="page-head"><h1><?= e($title) ?></h1><a class="btn ghost" href="<?= e(url('/movimientos')) ?>">Volver</a></div>
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
-    <?php $i = $item; ?>
-    <form method="post" action="<?= e(url('/movimientos')) ?>" class="panel form-grid" id="tx-form">
+    <?php
+    $i = $item;
+    $isEdit = !empty($i['id']);
+    $action = $isEdit ? '/movimientos/' . (int) $i['id'] : '/movimientos';
+    ?>
+    <form method="post" action="<?= e(url($action)) ?>" class="panel form-grid" id="tx-form">
         <?= csrf_field() ?>
         <label>Entidad *
             <select name="entity_id" required>
@@ -50,15 +54,15 @@
         </label>
         <label id="label-adjustment"><span>Ajuste</span>
             <select name="adjustment_direction">
-                <option value="plus">Sumar al saldo</option>
-                <option value="minus">Restar al saldo</option>
+                <option value="plus"<?= selected($i['adjustment_direction'] ?? 'plus', 'plus') ?>>Sumar al saldo</option>
+                <option value="minus"<?= selected($i['adjustment_direction'] ?? 'plus', 'minus') ?>>Restar al saldo</option>
             </select>
         </label>
         <label>Categoría
             <select name="category_id">
                 <option value="">—</option>
                 <?php foreach ($categories as $cat): ?>
-                    <option value="<?= (int) $cat['id'] ?>"><?= e($cat['name']) ?></option>
+                    <option value="<?= (int) $cat['id'] ?>"<?= selected($i['category_id'] ?? '', $cat['id']) ?>><?= e($cat['name']) ?></option>
                 <?php endforeach; ?>
             </select>
         </label>
@@ -66,13 +70,15 @@
             <input name="description" value="<?= e($i['description'] ?? '') ?>">
         </label>
         <p class="muted full" id="tx-hint"></p>
-        <div class="full"><button type="submit">Registrar</button></div>
+        <?php if ($isEdit): ?>
+            <p class="muted full">Al cambiar importe, tipo o cuentas se recalculan los saldos (se revierte el movimiento anterior y se aplica el nuevo).</p>
+        <?php endif; ?>
+        <div class="full"><button type="submit"><?= $isEdit ? 'Guardar cambios' : 'Registrar' ?></button></div>
     </form>
 </section>
 <script>
 (() => {
   const type = document.getElementById('tx-type');
-  const labelAccount = document.getElementById('label-account');
   const labelDest = document.getElementById('label-destination');
   const labelAdj = document.getElementById('label-adjustment');
   const hint = document.getElementById('tx-hint');

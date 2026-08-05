@@ -8,6 +8,8 @@ final class AccountController
     {
         Auth::requireLogin();
         $entityId = request_int('entity_id');
+        $currency = trim((string) ($_GET['currency'] ?? 'ARS')) ?: 'ARS';
+
         $sql = "SELECT a.*, e.name AS entity_name
                 FROM accounts a
                 INNER JOIN entities e ON e.id = a.entity_id
@@ -20,12 +22,101 @@ final class AccountController
         $sql .= ' ORDER BY e.name, a.name';
         $stmt = Database::pdo()->prepare($sql);
         $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+
+        $typeLabels = [
+            'bank' => 'Banco',
+            'checking' => 'Caja de ahorro',
+            'savings' => 'Ahorro',
+            'wallet' => 'Billetera',
+            'mercadopago' => 'Mercado Pago',
+            'cash' => 'Efectivo',
+            'broker' => 'Broker',
+            'virtual' => 'Virtual',
+            'other' => 'Otro',
+        ];
+
+        $total = 0.0;
+        $mpTotal = 0.0;
+        $mpCount = 0;
+        $bankTotal = 0.0;
+        $bankCount = 0;
+        $bankTypes = ['bank', 'checking', 'savings'];
+        $byType = [];
+        $byEntity = [];
+        $mpByAccountLabels = [];
+        $mpByAccountValues = [];
+        $mpByAccountIds = [];
+        $mpByEntity = [];
+
+        foreach ($rows as $row) {
+            if ((string) ($row['currency_code'] ?? '') !== $currency) {
+                continue;
+            }
+            if (!(int) ($row['include_in_net_worth'] ?? 1)) {
+                continue;
+            }
+            $bal = (float) ($row['balance'] ?? 0);
+            $total += $bal;
+            $type = (string) ($row['type'] ?? 'other');
+            $typeName = $typeLabels[$type] ?? $type;
+            $byType[$typeName] = ($byType[$typeName] ?? 0.0) + $bal;
+            $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+            $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $bal;
+
+            if (in_array($type, $bankTypes, true)) {
+                $bankTotal += $bal;
+                $bankCount++;
+            }
+
+            if ($type === 'mercadopago') {
+                $mpTotal += $bal;
+                $mpCount++;
+                $mpByAccountLabels[] = (string) ($row['name'] ?? 'MP');
+                $mpByAccountValues[] = $bal;
+                $mpByAccountIds[] = (int) ($row['id'] ?? 0);
+                $mpByEntity[$ename] = ($mpByEntity[$ename] ?? 0.0) + $bal;
+            }
+        }
+
+        arsort($byType);
+        arsort($byEntity);
 
         view('accounts/index', [
             'title' => 'Cuentas',
-            'rows' => $stmt->fetchAll(),
+            'rows' => $rows,
             'entities' => Catalog::entities(),
+            'currencies' => Catalog::currencies(),
             'entityId' => $entityId,
+            'currency' => $currency,
+            'typeLabels' => $typeLabels,
+            'totals' => [
+                'balance' => $total,
+                'bank' => $bankTotal,
+                'bank_count' => $bankCount,
+                'mp' => $mpTotal,
+                'mp_count' => $mpCount,
+                'count' => count($rows),
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($byType),
+                    'values' => array_values($byType),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byEntity),
+                    'values' => array_values($byEntity),
+                ],
+                'byAccount' => [
+                    'labels' => $mpByAccountLabels,
+                    'values' => $mpByAccountValues,
+                    'ids' => $mpByAccountIds,
+                ],
+                'mpByEntity' => [
+                    'labels' => array_keys($mpByEntity),
+                    'values' => array_values($mpByEntity),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
@@ -144,9 +235,6 @@ final class AccountController
             $pdo->commit();
             AuditService::log('create', 'account', $id, 'Alta cuenta: ' . $name);
             flash('success', 'Cuenta creada.');
-            if ($type === 'mercadopago') {
-                redirect('/dashboard/mercadopago');
-            }
             redirect('/cuentas');
         } catch (Throwable $e) {
             $pdo->rollBack();
@@ -233,6 +321,35 @@ final class AccountController
             flash('error', 'No se pudo actualizar: ' . $e->getMessage());
             redirect('/cuentas/' . $accountId . '/editar');
         }
+    }
+
+    public static function destroy(string $id): void
+    {
+        Auth::requireLogin();
+        require_csrf();
+        $accountId = (int) $id;
+        $account = self::find($accountId);
+        if (!$account) {
+            flash('error', 'Cuenta no encontrada.');
+            redirect('/cuentas');
+        }
+
+        $balance = abs((float) ($account['balance'] ?? 0));
+        $held = abs((float) ($account['balance_held'] ?? 0));
+        if ($balance > 0.009 || $held > 0.009) {
+            flash('error', 'Solo se puede eliminar una cuenta con saldo y retenido en 0. Transferí o ajustá el saldo antes.');
+            redirect('/cuentas/' . $accountId . '/editar');
+        }
+
+        try {
+            Database::pdo()->prepare('DELETE FROM accounts WHERE id = :id')->execute(['id' => $accountId]);
+            AuditService::log('delete', 'account', $accountId, 'Eliminación cuenta: ' . ($account['name'] ?? ''), $account, null);
+            flash('success', 'Cuenta eliminada.');
+        } catch (Throwable $e) {
+            flash('error', 'No se pudo eliminar: ' . $e->getMessage());
+            redirect('/cuentas/' . $accountId . '/editar');
+        }
+        redirect('/cuentas');
     }
 
     private static function find(int $id): ?array

@@ -186,22 +186,30 @@ final class DashboardController
         $currency = post_string('currency', 'ARS') ?: 'ARS';
         $mode = post_string('mode', 'consolidated') ?: 'consolidated';
         $entityId = request_int('entity_id');
+        $redirectTo = post_string('redirect_to') ?: '';
 
-        if ($mode === 'entity' && $entityId) {
+        if ($entityId) {
             $row = PatrimonioService::forEntity($entityId, $currency);
             $scope = (($row['mode'] ?? '') === 'personal') ? 'personal' : 'entity';
             $id = SnapshotService::capture($scope, $row + ['currency' => $currency], $entityId);
+            AuditService::log('create', 'net_worth_snapshot', $id, "Snapshot entidad {$entityId}");
+            flash('success', 'Snapshot de la entidad capturado.');
         } else {
-            $summary = PatrimonioService::summarize(
-                $entityId ? [$entityId] : null,
-                $currency,
-                in_array($mode, ['personal', 'consolidated'], true) ? $mode : 'consolidated'
+            // Consolidado/personal: también baseline por cada persona/empresa (sirve al ranking).
+            $ids = SnapshotService::captureDaily($currency);
+            AuditService::log(
+                'create',
+                'net_worth_snapshot',
+                $ids[0] ?? 0,
+                'Snapshot diario: ' . count($ids) . ' filas'
             );
-            $id = SnapshotService::capture($summary['mode'] ?? $mode, $summary, null);
+            flash('success', 'Snapshots capturados: consolidado, personal y cada entidad activa.');
         }
 
-        AuditService::log('create', 'net_worth_snapshot', $id, "Snapshot {$mode}");
-        flash('success', 'Snapshot patrimonial capturado.');
+        if ($redirectTo !== '' && str_starts_with($redirectTo, '/')) {
+            redirect($redirectTo);
+        }
+
         $q = http_build_query(array_filter([
             'mode' => $mode,
             'entity_id' => $entityId,
@@ -210,59 +218,18 @@ final class DashboardController
         redirect('/dashboard' . ($q ? ('?' . $q) : ''));
     }
 
+    /** @deprecated Redirige a Cuentas (MP es cuenta manual como el resto). */
     public static function mercadopago(): void
     {
         Auth::requireLogin();
-
-        $currency = $_GET['currency'] ?? 'ARS';
-        $entityId = request_int('entity_id');
-        $accountId = request_int('account_id');
-        $range = $_GET['range'] ?? '30d';
-        if (!in_array($range, ['30d', 'month', '90d', 'all'], true)) {
-            $range = '30d';
+        $qs = [];
+        if ($entityId = request_int('entity_id')) {
+            $qs['entity_id'] = $entityId;
         }
-
-        if (array_key_exists('from', $_GET) || array_key_exists('to', $_GET)) {
-            $from = trim((string) ($_GET['from'] ?? '')) ?: null;
-            $to = trim((string) ($_GET['to'] ?? '')) ?: null;
-            $range = 'custom';
-        } elseif ($range === 'month') {
-            $from = date('Y-m-01');
-            $to = date('Y-m-d');
-        } elseif ($range === '90d') {
-            $from = date('Y-m-d', strtotime('-89 days'));
-            $to = date('Y-m-d');
-        } elseif ($range === 'all') {
-            $from = null;
-            $to = null;
-        } else {
-            $from = date('Y-m-d', strtotime('-29 days'));
-            $to = date('Y-m-d');
-            $range = '30d';
+        if (($currency = trim((string) ($_GET['currency'] ?? ''))) !== '') {
+            $qs['currency'] = $currency;
         }
-
-        $mp = MercadoPagoDashboardService::summarize($entityId, $accountId, $currency, $from, $to);
-
-        $mpAccountsSql = "SELECT a.id, a.name, a.entity_id, e.name AS entity_name
-                          FROM accounts a
-                          INNER JOIN entities e ON e.id = a.entity_id
-                          WHERE a.type = 'mercadopago' AND a.status = 'active'
-                          ORDER BY e.name, a.name";
-        $mpAccounts = Database::pdo()->query($mpAccountsSql)->fetchAll();
-
-        view('dashboard/mercadopago', [
-            'title' => 'Dashboard Mercado Pago',
-            'mp' => $mp,
-            'currency' => $currency,
-            'entityId' => $entityId,
-            'accountId' => $accountId,
-            'from' => $from,
-            'to' => $to,
-            'range' => $range,
-            'entities' => Catalog::entities(),
-            'currencies' => Catalog::currencies(),
-            'mpAccounts' => $mpAccounts,
-        ]);
+        redirect('/cuentas' . ($qs ? ('?' . http_build_query($qs)) : ''));
     }
 
     /** @return list<int>|null null = todas las entidades activas */

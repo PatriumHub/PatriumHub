@@ -26,8 +26,7 @@
             <p class="integrations-empty-lead">Todavía no hay conexiones.</p>
             <p class="muted">Las cuentas Mercado Pago se cargan a mano en
                 <a href="<?= e(url('/cuentas')) ?>">Cuentas</a>
-                (tipo Mercado Pago) o desde el
-                <a href="<?= e(url('/dashboard/mercadopago')) ?>">Dashboard MP</a>.
+                (tipo Mercado Pago).
             </p>
             <div class="integration-cards" style="grid-template-columns:1fr;max-width:360px">
                 <a class="integration-card" href="<?= e(url('/integraciones/woocommerce/nueva')) ?>">

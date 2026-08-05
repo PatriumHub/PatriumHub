@@ -221,6 +221,7 @@ final class PatrimonioService
         self::accumulateReceivables($byEntity, $ids, $currency);
         self::accumulateInventories($byEntity, $ids, $currency);
         self::accumulateLiabilities($byEntity, $ids, $currency);
+        self::accumulateBudgetLiabilities($byEntity, $ids, $currency);
 
         $meta = self::entityMeta($ids);
         $rows = [];
@@ -512,6 +513,36 @@ final class PatrimonioService
                 GROUP BY entity_id";
         $stmt = Database::pdo()->prepare($sql);
         $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+        foreach ($stmt->fetchAll() as $r) {
+            $id = (int) $r['entity_id'];
+            if (isset($byEntity[$id])) {
+                $byEntity[$id]['liabilities'] += (float) $r['total'];
+            }
+        }
+    }
+
+    /** Presupuestos pendientes del mes (y meses anteriores no liquidados) como pasivo. */
+    private static function accumulateBudgetLiabilities(array &$byEntity, array $ids, string $currency): void
+    {
+        try {
+            BudgetService::ensurePeriod(date('Y-m'));
+        } catch (Throwable) {
+            // Tablas aún no migradas: no romper patrimonio.
+            return;
+        }
+
+        $in = self::placeholders($ids);
+        $sql = "SELECT entity_id, COALESCE(SUM(amount),0) AS total
+                FROM budget_items
+                WHERE status = 'pending' AND include_in_net_worth = 1
+                  AND currency_code = :cur AND entity_id IN ($in)
+                GROUP BY entity_id";
+        try {
+            $stmt = Database::pdo()->prepare($sql);
+            $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+        } catch (Throwable) {
+            return;
+        }
         foreach ($stmt->fetchAll() as $r) {
             $id = (int) $r['entity_id'];
             if (isset($byEntity[$id])) {

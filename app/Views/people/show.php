@@ -2,7 +2,7 @@
 $tabs = [
     'resumen' => 'Resumen',
     'cuentas' => 'Cuentas',
-    'activos' => 'Activos',
+    'activos' => 'Activos varios',
     'pasivos' => 'Pasivos',
     'propiedades' => 'Propiedades',
     'cobrables' => 'Cobrables',
@@ -25,6 +25,14 @@ $parts = $summary['participation_details'] ?? [];
             </p>
         </div>
         <div class="actions">
+            <form method="post" action="<?= e(url('/dashboard/snapshot')) ?>" class="inline">
+                <?= csrf_field() ?>
+                <input type="hidden" name="mode" value="entity">
+                <input type="hidden" name="entity_id" value="<?= (int) $person['id'] ?>">
+                <input type="hidden" name="currency" value="<?= e($currency) ?>">
+                <input type="hidden" name="redirect_to" value="<?= e($personPath . '?tab=' . urlencode((string) $tab) . '&currency=' . urlencode($currency)) ?>">
+                <button type="submit" class="btn ghost">Capturar snapshot</button>
+            </form>
             <a class="btn ghost" href="<?= e(url($personPath . '/editar')) ?>">Editar</a>
             <a class="btn ghost" href="<?= e(url('/personas')) ?>">Volver</a>
         </div>
@@ -98,7 +106,7 @@ $parts = $summary['participation_details'] ?? [];
             'bad' => 'is-bad',
             default => 'is-warn',
         };
-        $compLabels = ['Cuentas', 'Activos', 'Propiedades', 'Cobrables', 'Participaciones'];
+        $compLabels = ['Cuentas', 'Activos varios', 'Propiedades', 'Cobrables', 'Participaciones'];
         $compValues = [
             (float) ($summary['accounts'] ?? 0),
             (float) ($summary['assets'] ?? 0),

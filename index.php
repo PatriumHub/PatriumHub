@@ -48,6 +48,7 @@ $router->get('/cuentas/nueva', [AccountController::class, 'create']);
 $router->post('/cuentas', [AccountController::class, 'store']);
 $router->get('/cuentas/{id}/editar', [AccountController::class, 'edit']);
 $router->post('/cuentas/{id}', [AccountController::class, 'update']);
+$router->post('/cuentas/{id}/eliminar', [AccountController::class, 'destroy']);
 
 $router->get('/activos', [AssetController::class, 'index']);
 $router->get('/activos/nuevo', [AssetController::class, 'create']);
@@ -73,6 +74,18 @@ $router->post('/pasivos', [LiabilityController::class, 'store']);
 $router->get('/pasivos/{id}/editar', [LiabilityController::class, 'edit']);
 $router->post('/pasivos/{id}', [LiabilityController::class, 'update']);
 
+$router->get('/presupuestos', [BudgetController::class, 'index']);
+$router->get('/presupuestos/plantillas', [BudgetController::class, 'templates']);
+$router->get('/presupuestos/plantillas/nueva', [BudgetController::class, 'createTemplate']);
+$router->post('/presupuestos/plantillas', [BudgetController::class, 'storeTemplate']);
+$router->get('/presupuestos/plantillas/{id}/editar', [BudgetController::class, 'editTemplate']);
+$router->post('/presupuestos/plantillas/{id}', [BudgetController::class, 'updateTemplate']);
+$router->post('/presupuestos/plantillas/{id}/eliminar', [BudgetController::class, 'destroyTemplate']);
+$router->post('/presupuestos/items/{id}/pagar', [BudgetController::class, 'payItem']);
+$router->post('/presupuestos/items/{id}/omitir', [BudgetController::class, 'skipItem']);
+$router->post('/presupuestos/items/{id}/revertir', [BudgetController::class, 'revertItem']);
+$router->post('/presupuestos/items/{id}/eliminar', [BudgetController::class, 'deleteItem']);
+
 $router->get('/inventario', [InventoryController::class, 'index']);
 $router->get('/inventario/nuevo', [InventoryController::class, 'create']);
 $router->post('/inventario', [InventoryController::class, 'store']);
@@ -83,6 +96,8 @@ $router->get('/movimientos', [TransactionController::class, 'index']);
 $router->get('/movimientos/export', [TransactionController::class, 'export']);
 $router->get('/movimientos/nuevo', [TransactionController::class, 'create']);
 $router->post('/movimientos', [TransactionController::class, 'store']);
+$router->get('/movimientos/{id}/editar', [TransactionController::class, 'edit']);
+$router->post('/movimientos/{id}', [TransactionController::class, 'update']);
 
 $router->get('/configuracion', [SettingsController::class, 'index']);
 $router->post('/configuracion/clave', [SettingsController::class, 'generateKey']);

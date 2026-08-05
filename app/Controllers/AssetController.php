@@ -15,7 +15,7 @@ final class AssetController
              ORDER BY e.name, a.name"
         )->fetchAll();
         view('assets/index', [
-            'title' => 'Activos',
+            'title' => 'Activos varios',
             'rows' => $rows,
             'success' => flash('success'),
             'error' => flash('error'),

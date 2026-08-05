@@ -5,7 +5,7 @@ $byCurrency = $byCurrency ?? ['labels' => [], 'values' => []];
 $ranking = $ranking ?? ['labels' => [], 'values' => [], 'ids' => []];
 $alerts = $alerts ?? [];
 
-$compositionLabels = ['Cuentas', 'Activos', 'Propiedades', 'Cobrables', 'Inventario', 'Participaciones'];
+$compositionLabels = ['Cuentas', 'Activos varios', 'Propiedades', 'Cobrables', 'Inventario', 'Participaciones'];
 $compositionRoutes = ['/cuentas', '/activos', '/propiedades', '/cobrables', '/inventario', '/participaciones'];
 $compositionValues = [
     (float) ($summary['accounts'] ?? 0),
@@ -376,7 +376,15 @@ $modeLede = match (true) {
             <?php elseif ($hide): ?>
                 <div class="chart-empty">Cifras ocultas</div>
             <?php else: ?>
-                <div class="chart-empty">Hace falta al menos 2 snapshots por entidad.</div>
+                <div class="chart-empty">
+                    <p style="margin:0 0 0.75rem">Todavía no hay snapshots por entidad.</p>
+                    <form method="post" action="<?= e(url('/dashboard/snapshot')) ?>" class="inline">
+                        <?= csrf_field() ?>
+                        <input type="hidden" name="mode" value="consolidated">
+                        <input type="hidden" name="currency" value="<?= e($currency) ?>">
+                        <button type="submit" class="btn sm">Capturar baseline ahora</button>
+                    </form>
+                </div>
             <?php endif; ?>
         </div>
         <div class="chart-card">

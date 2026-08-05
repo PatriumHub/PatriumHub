@@ -35,6 +35,7 @@ require_once __DIR__ . '/Services/SettingsService.php';
 require_once __DIR__ . '/Services/ExportService.php';
 require_once __DIR__ . '/Services/DashboardAnalyticsService.php';
 require_once __DIR__ . '/Services/ValuationService.php';
+require_once __DIR__ . '/Services/BudgetService.php';
 
 foreach ([
     'AuthController',
@@ -54,6 +55,7 @@ foreach ([
     'OwnershipController',
     'ValuationController',
     'SavedViewController',
+    'BudgetController',
 ] as $controller) {
     require_once __DIR__ . '/Controllers/' . $controller . '.php';
 }

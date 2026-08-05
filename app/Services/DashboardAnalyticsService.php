@@ -91,7 +91,8 @@ final class DashboardAnalyticsService
     }
 
     /**
-     * Ranking de variación de neto entre los 2 últimos snapshots por entidad.
+     * Ranking de variación de neto por entidad.
+     * Prefiere delta entre los 2 últimos snapshots; si hay uno solo, compara vs patrimonio actual.
      * @return array{labels:list<string>,values:list<float>,ids:list<int>}
      */
     public static function entityRanking(string $currency, int $limit = 8): array
@@ -102,6 +103,7 @@ final class DashboardAnalyticsService
              INNER JOIN entities e ON e.id = s.entity_id
              WHERE s.currency_code = :c
                AND s.entity_id IS NOT NULL
+               AND e.is_active = 1
                AND s.scope IN ('entity','personal')
              ORDER BY s.entity_id ASC, s.captured_at DESC, s.id DESC"
         );
@@ -121,13 +123,17 @@ final class DashboardAnalyticsService
 
         $deltas = [];
         foreach ($latest as $id => $now) {
-            if (!isset($prev[$id])) {
-                continue;
+            if (isset($prev[$id])) {
+                $delta = (float) $now['net_worth'] - (float) $prev[$id]['net_worth'];
+            } else {
+                // Un solo snapshot: variación desde ese baseline vs valor actual.
+                $live = PatrimonioService::forEntity($id, $currency);
+                $delta = (float) ($live['net_worth'] ?? 0) - (float) $now['net_worth'];
             }
             $deltas[] = [
                 'id' => $id,
                 'name' => (string) $now['name'],
-                'delta' => (float) $now['net_worth'] - (float) $prev[$id]['net_worth'],
+                'delta' => $delta,
             ];
         }
         usort($deltas, static fn ($a, $b) => abs($b['delta']) <=> abs($a['delta']));

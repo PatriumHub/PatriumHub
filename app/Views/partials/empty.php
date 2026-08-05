@@ -9,6 +9,6 @@ $ctaLabel = $ctaLabel ?? null;
 <div class="panel empty">
     <p><?= e($message) ?></p>
     <?php if ($ctaHref && $ctaLabel): ?>
-        <p class="mt"><a class="btn" href="<?= e(url($ctaHref)) ?>"><?= e($ctaLabel) ?></a></p>
+        <p class="empty-cta"><a class="btn" href="<?= e(url($ctaHref)) ?>"><?= e($ctaLabel) ?></a></p>
     <?php endif; ?>
 </div>

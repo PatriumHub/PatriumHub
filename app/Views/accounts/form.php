@@ -57,6 +57,27 @@
         <?php endif; ?>
         <label class="check"><input type="checkbox" name="include_in_net_worth" value="1"<?= checked($a['include_in_net_worth'] ?? 1) ?>> Incluir en patrimonio</label>
         <label class="full">Notas<textarea name="notes" rows="2"><?= e($a['notes'] ?? '') ?></textarea></label>
-        <div class="full"><button type="submit">Guardar</button></div>
+        <div class="full form-actions">
+            <button type="submit">Guardar</button>
+        </div>
     </form>
+    <?php
+    $canDelete = $isEdit
+        && abs((float) ($a['balance'] ?? 0)) <= 0.009
+        && abs((float) ($a['balance_held'] ?? 0)) <= 0.009;
+    ?>
+    <?php if ($isEdit): ?>
+        <div class="panel mt">
+            <h2 style="margin-top:0">Eliminar cuenta</h2>
+            <?php if ($canDelete): ?>
+                <p class="muted">Saldo en 0. Se borra la cuenta; los movimientos históricos quedan sin cuenta asociada.</p>
+                <form method="post" action="<?= e(url('/cuentas/' . (int) $a['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar esta cuenta? No se puede deshacer.');">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn danger">Eliminar cuenta</button>
+                </form>
+            <?php else: ?>
+                <p class="muted">Para eliminarla, el saldo y el retenido tienen que estar en 0.</p>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
 </section>

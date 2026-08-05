@@ -1,6 +1,6 @@
 <section class="page">
     <div class="page-head">
-        <div><h1>Activos</h1><p class="lede">Vehículos, equipos, inversiones y más</p></div>
+        <div><h1>Activos varios</h1><p class="lede">Vehículos, equipos, inversiones y más</p></div>
         <a class="btn" href="<?= e(url('/activos/nuevo')) ?>">Nuevo activo</a>
     </div>
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
