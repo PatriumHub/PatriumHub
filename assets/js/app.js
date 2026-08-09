@@ -20,6 +20,29 @@
     });
   });
 
+  const topbar = document.getElementById('topbar');
+  const navToggle = document.getElementById('nav-toggle');
+  if (topbar && navToggle) {
+    const setOpen = (open) => {
+      topbar.classList.toggle('is-open', open);
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      navToggle.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    };
+    navToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setOpen(!topbar.classList.contains('is-open'));
+    });
+    topbar.querySelectorAll('.topbar-panel a').forEach((a) => {
+      a.addEventListener('click', () => setOpen(false));
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    });
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 960) setOpen(false);
+    });
+  }
+
   const bootCharts = () => {
     const node = document.getElementById('dashboard-charts')
       || document.getElementById('company-charts')
