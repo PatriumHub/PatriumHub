@@ -7,7 +7,7 @@ final class AuthController
     public static function showLogin(): void
     {
         if (Auth::check()) {
-            redirect('/');
+            redirect(Auth::homePath());
         }
         view('auth/login', [
             'title' => 'Ingresar',
@@ -42,13 +42,13 @@ final class AuthController
             redirect('/login');
         }
 
-        redirect('/');
+        redirect(Auth::homePath());
     }
 
     public static function logout(): void
     {
         if (!verify_csrf($_POST['_csrf'] ?? null)) {
-            redirect('/');
+            redirect(Auth::homePath());
         }
         Auth::logout();
         redirect('/login');

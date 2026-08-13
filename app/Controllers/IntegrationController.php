@@ -6,7 +6,7 @@ final class IntegrationController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = array_values(array_filter(
             IntegrationService::list(),
             static fn (array $row): bool => ($row['provider'] ?? '') === 'woocommerce'
@@ -28,7 +28,7 @@ final class IntegrationController
 
     public static function createWoo(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         self::ensureCrypto();
         view('integrations/woocommerce_form', [
             'title' => 'Nueva tienda WooCommerce',
@@ -56,7 +56,7 @@ final class IntegrationController
 
     public static function storeWoo(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         self::ensureCrypto();
 
@@ -88,7 +88,7 @@ final class IntegrationController
 
     public static function show(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $item = IntegrationService::find((int) $id);
         if (!$item || ($item['provider'] ?? '') !== 'woocommerce') {
             flash('error', 'Integración no encontrada.');
@@ -127,7 +127,7 @@ final class IntegrationController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         self::ensureCrypto();
         $item = IntegrationService::find((int) $id);
         if (!$item || $item['status'] === 'revoked' || ($item['provider'] ?? '') !== 'woocommerce') {
@@ -149,7 +149,7 @@ final class IntegrationController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         self::ensureCrypto();
         $integrationId = (int) $id;
@@ -164,7 +164,7 @@ final class IntegrationController
 
     public static function test(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         self::ensureCrypto();
         $integrationId = (int) $id;
@@ -183,7 +183,7 @@ final class IntegrationController
 
     public static function sync(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         self::ensureCrypto();
         $integrationId = (int) $id;
@@ -200,7 +200,7 @@ final class IntegrationController
 
     public static function revoke(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $integrationId = (int) $id;
         $item = IntegrationService::find($integrationId);

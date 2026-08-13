@@ -6,7 +6,7 @@ final class ValuationController
 {
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
 
         $companyId = request_int('company_entity_id');

@@ -40,4 +40,34 @@ if ($first === '' && !empty($p['name'])) {
         </label>
         <div class="full"><button type="submit">Guardar</button></div>
     </form>
+
+    <?php if ($isEdit): ?>
+        <?php
+        $counts = $deleteCounts ?? [];
+        $confirmMsg = EntityService::confirmMessage((string) ($p['name'] ?? ''), $counts);
+        $nonZero = array_filter($counts, static fn ($n) => (int) $n > 0);
+        ?>
+        <div class="panel mt" style="border-color: rgba(240, 113, 120, 0.35)">
+            <h2 style="margin:0;color:var(--danger)">Eliminar persona</h2>
+            <p class="muted">Borra la persona y todo lo asociado (cuentas, movimientos, participaciones, etc.). No se puede deshacer.</p>
+            <?php if ($nonZero !== []): ?>
+                <ul class="plain">
+                    <?php foreach ($nonZero as $label => $n): ?>
+                        <li><?= e(str_replace('_', ' ', (string) $label)) ?>: <strong><?= (int) $n ?></strong></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <form method="post" action="<?= e(url('/personas/' . (int) $p['id'] . '/eliminar')) ?>" class="form-grid mt"
+                  style="padding:0;border:0;box-shadow:none;background:transparent"
+                  onsubmit="return confirm(<?= json_encode($confirmMsg, JSON_UNESCAPED_UNICODE) ?>);">
+                <?= csrf_field() ?>
+                <label class="full">Escribí el nombre exacto para confirmar: <strong><?= e($p['name'] ?? '') ?></strong>
+                    <input name="confirm_name" required autocomplete="off" placeholder="<?= e($p['name'] ?? '') ?>">
+                </label>
+                <div class="full">
+                    <button type="submit" class="btn danger">Eliminar persona</button>
+                </div>
+            </form>
+        </div>
+    <?php endif; ?>
 </section>

@@ -6,7 +6,7 @@ final class LiabilityController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = Database::pdo()->query(
             "SELECT l.*, e.name AS entity_name
              FROM liabilities l
@@ -51,7 +51,7 @@ final class LiabilityController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('liabilities/form', [
             'title' => 'Nuevo pasivo',
             'item' => [
@@ -71,7 +71,7 @@ final class LiabilityController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $entityId = request_int('entity_id');
         $name = post_string('name');
@@ -96,7 +96,7 @@ final class LiabilityController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $item = self::find((int) $id);
         if (!$item) {
             flash('error', 'Pasivo no encontrado.');
@@ -113,7 +113,7 @@ final class LiabilityController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $liabId = (int) $id;
         $before = self::find($liabId);

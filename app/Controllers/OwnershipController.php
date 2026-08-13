@@ -6,7 +6,7 @@ final class OwnershipController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = Database::pdo()->query(
             "SELECT o.*, owner.name AS owner_name, company.name AS company_name
              FROM ownerships o
@@ -25,7 +25,7 @@ final class OwnershipController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('ownerships/form', [
             'title' => 'Nueva participación',
             'item' => [
@@ -41,7 +41,7 @@ final class OwnershipController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $owner = request_int('owner_entity_id');
         $company = request_int('company_entity_id');
@@ -72,7 +72,7 @@ final class OwnershipController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $item = self::find((int) $id);
         if (!$item) {
             flash('error', 'Participación no encontrada.');
@@ -89,7 +89,7 @@ final class OwnershipController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $ownId = (int) $id;
         $before = self::find($ownId);
@@ -122,7 +122,7 @@ final class OwnershipController
 
     public static function destroy(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $ownId = (int) $id;
         $before = self::find($ownId);

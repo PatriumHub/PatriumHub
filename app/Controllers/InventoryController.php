@@ -6,7 +6,7 @@ final class InventoryController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = Database::pdo()->query(
             "SELECT i.*, e.name AS entity_name
              FROM inventories i
@@ -23,7 +23,7 @@ final class InventoryController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('inventories/form', [
             'title' => 'Nuevo inventario',
             'item' => [
@@ -43,7 +43,7 @@ final class InventoryController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $entityId = request_int('entity_id');
         $name = post_string('name', 'Inventario');
@@ -96,7 +96,7 @@ final class InventoryController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $item = self::find((int) $id);
         if (!$item) {
             flash('error', 'Inventario no encontrado.');
@@ -113,7 +113,7 @@ final class InventoryController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $invId = (int) $id;
         $before = self::find($invId);

@@ -6,7 +6,7 @@ final class DashboardController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $user = Auth::user();
 
         $viewId = request_int('view');
@@ -152,7 +152,7 @@ final class DashboardController
 
     public static function exportSeries(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $currency = $_GET['currency'] ?? 'ARS';
         $entityId = request_int('entity_id');
         $mode = $_GET['mode'] ?? 'consolidated';
@@ -180,7 +180,7 @@ final class DashboardController
 
     public static function captureSnapshot(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
 
         $currency = post_string('currency', 'ARS') ?: 'ARS';
@@ -221,7 +221,7 @@ final class DashboardController
     /** @deprecated Redirige a Cuentas (MP es cuenta manual como el resto). */
     public static function mercadopago(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $qs = [];
         if ($entityId = request_int('entity_id')) {
             $qs['entity_id'] = $entityId;

@@ -112,6 +112,89 @@ final class Auth
         }
     }
 
+    public static function isAdmin(): bool
+    {
+        $user = self::user();
+        return is_array($user) && ($user['role'] ?? '') === 'admin';
+    }
+
+    /** Admin puede escribir; el resto es solo lectura. */
+    public static function canWrite(): bool
+    {
+        return self::isAdmin();
+    }
+
+    /** Destino post-login / redirecciones para usuarios limitados. */
+    public static function homePath(): string
+    {
+        if (self::isAdmin()) {
+            return '/';
+        }
+        $companies = Catalog::entities('company');
+        if ($companies !== []) {
+            return '/empresas';
+        }
+        $people = Catalog::entities('person');
+        if ($people !== []) {
+            return '/personas';
+        }
+        return '/configuracion?tab=perfil';
+    }
+
+    public static function requireAdmin(): void
+    {
+        self::requireLogin();
+        if (!self::isAdmin()) {
+            flash('error', 'Solo un administrador puede hacer eso.');
+            redirect(self::homePath());
+        }
+    }
+
+    /** Altas, ediciones, borrados y acciones que cambian datos. */
+    public static function requireWrite(): void
+    {
+        self::requireLogin();
+        if (!self::canWrite()) {
+            flash('error', 'Tu usuario es de solo lectura: no podés crear, editar ni borrar.');
+            redirect(self::homePath());
+        }
+    }
+
+    /** Secciones de administración / operación (dashboard, ABMs globales, etc.). */
+    public static function requireAdminArea(): void
+    {
+        self::requireLogin();
+        if (!self::isAdmin()) {
+            flash('error', 'No tenés acceso a esa sección.');
+            redirect(self::homePath());
+        }
+    }
+
+    /** Recarga nombre/email/rol desde BD a la sesión. */
+    public static function refreshSessionUser(): void
+    {
+        $user = self::user();
+        if (!$user) {
+            return;
+        }
+        $stmt = Database::pdo()->prepare(
+            'SELECT id, name, email, role, is_active
+             FROM users WHERE id = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => (int) $user['id']]);
+        $row = $stmt->fetch();
+        if (!$row || !(int) $row['is_active']) {
+            self::logout();
+            return;
+        }
+        $_SESSION['user'] = [
+            'id' => (int) $row['id'],
+            'name' => $row['name'],
+            'email' => $row['email'],
+            'role' => $row['role'],
+        ];
+    }
+
     public static function loginThrottled(): bool
     {
         $key = self::throttleKey();

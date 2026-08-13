@@ -6,7 +6,7 @@ final class TransactionController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $entityId = request_int('entity_id');
         $pdo = Database::pdo();
 
@@ -47,7 +47,7 @@ final class TransactionController
 
     public static function export(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $entityId = request_int('entity_id');
         $sql = "SELECT t.occurred_at, e.name AS entity_name, t.type, a.name AS account_name,
                        dest.name AS counterparty_name, c.name AS category_name, t.description,
@@ -88,7 +88,7 @@ final class TransactionController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('transactions/form', [
             'title' => 'Nuevo movimiento',
             'item' => [
@@ -110,7 +110,7 @@ final class TransactionController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
 
         $payload = self::payloadFromRequest();
@@ -168,7 +168,7 @@ final class TransactionController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $item = self::find((int) $id);
         if (!$item) {
             flash('error', 'Movimiento no encontrado.');
@@ -202,7 +202,7 @@ final class TransactionController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $txId = (int) $id;
         $before = self::find($txId);
@@ -379,6 +379,8 @@ final class TransactionController
         $sign = $sign < 0 ? -1.0 : 1.0;
 
         if ($type === 'income' && $fromId) {
+            self::adjustBalance($pdo, $fromId, $amount * $sign);
+        } elseif ($type === 'collection' && $fromId) {
             self::adjustBalance($pdo, $fromId, $amount * $sign);
         } elseif ($type === 'expense' && $fromId) {
             self::adjustBalance($pdo, $fromId, -$amount * $sign);

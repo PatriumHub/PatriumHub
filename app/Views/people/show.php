@@ -10,6 +10,7 @@ $tabs = [
     'participaciones' => 'Participaciones',
 ];
 $personPath = '/personas/' . (int) $person['id'];
+$canWrite = !empty($canWrite);
 $net = (float) ($summary['net_worth'] ?? 0);
 $health = $health ?? ['status' => 'warn', 'label' => '—', 'reasons' => []];
 $parts = $summary['participation_details'] ?? [];
@@ -22,9 +23,11 @@ $parts = $summary['participation_details'] ?? [];
                 Persona
                 <?= !empty($person['document_id']) ? ' · Doc. ' . e($person['document_id']) : '' ?>
                 <?= !empty($person['country']) ? ' · ' . e($person['country']) : '' ?>
+                <?= $canWrite ? '' : ' · Solo lectura' ?>
             </p>
         </div>
         <div class="actions">
+            <?php if ($canWrite): ?>
             <form method="post" action="<?= e(url('/dashboard/snapshot')) ?>" class="inline">
                 <?= csrf_field() ?>
                 <input type="hidden" name="mode" value="entity">
@@ -34,6 +37,7 @@ $parts = $summary['participation_details'] ?? [];
                 <button type="submit" class="btn ghost">Capturar snapshot</button>
             </form>
             <a class="btn ghost" href="<?= e(url($personPath . '/editar')) ?>">Editar</a>
+            <?php endif; ?>
             <a class="btn ghost" href="<?= e(url('/personas')) ?>">Volver</a>
         </div>
     </div>
@@ -53,14 +57,16 @@ $parts = $summary['participation_details'] ?? [];
                     <h2>Empresas donde participa</h2>
                     <p class="muted" style="margin:0">Tu % de la empresa × valuación completa. El activo de la empresa cuenta al 100%; tu parte sale de la participación.</p>
                 </div>
+                <?php if ($canWrite): ?>
                 <a class="btn" href="<?= e(url('/participaciones/nueva?owner_entity_id=' . $person['id'])) ?>">+ Participación</a>
+                <?php endif; ?>
             </div>
             <?php if (empty($ownerships)): ?>
                 <p class="muted">Sin participaciones. El patrimonio personal solo suma activos propios.</p>
             <?php else: ?>
                 <table class="table">
                     <thead>
-                    <tr><th>Empresa</th><th class="num">%</th><th class="num">Valor atribuido</th><th class="num">Liquidez atribuida</th><th></th></tr>
+                    <tr><th>Empresa</th><th class="num">%</th><th class="num">Valor atribuido</th><th class="num">Liquidez atribuida</th><?php if ($canWrite): ?><th></th><?php endif; ?></tr>
                     </thead>
                     <tbody>
                     <?php
@@ -88,9 +94,11 @@ $parts = $summary['participation_details'] ?? [];
                                     ? e(money($detail['attributable_liquidity'] ?? 0, $currency))
                                     : '—' ?>
                             </td>
+                            <?php if ($canWrite): ?>
                             <td class="actions">
                                 <a href="<?= e(url('/participaciones/' . $o['id'] . '/editar')) ?>">Editar</a>
                             </td>
+                            <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -237,7 +245,7 @@ $parts = $summary['participation_details'] ?? [];
                 'cobrables' => '/cobrables/nueva?entity_id=' . $person['id'],
                 'movimientos' => '/movimientos/nuevo?entity_id=' . $person['id'],
             ];
-            if (isset($newLinks[$tab])): ?>
+            if ($canWrite && isset($newLinks[$tab])): ?>
                 <a class="btn" href="<?= e(url($newLinks[$tab])) ?>">Agregar</a>
             <?php endif; ?>
         </div>
@@ -252,7 +260,7 @@ $parts = $summary['participation_details'] ?? [];
                         <?php if ($tab === 'activos'): ?><th>Nombre</th><th>Cuenta</th><th>Categoría</th><th class="num">Valor</th><?php endif; ?>
                         <?php if ($tab === 'pasivos'): ?><th>Nombre</th><th>Tipo</th><th class="num">Saldo</th><th>Estado</th><?php endif; ?>
                         <?php if ($tab === 'propiedades'): ?><th>Nombre</th><th>Tipo</th><th class="num">Valor</th><?php endif; ?>
-                        <?php if ($tab === 'cobrables'): ?><th>Deudor</th><th class="num">Pendiente</th><th>Estado</th><?php endif; ?>
+                        <?php if ($tab === 'cobrables'): ?><th>Deudor</th><th class="num">Pendiente</th><th>Estado</th><?php if ($canWrite): ?><th></th><?php endif; ?><?php endif; ?>
                         <?php if ($tab === 'movimientos'): ?><th>Fecha</th><th>Tipo</th><th>Cuenta</th><th class="num">Importe</th><?php endif; ?>
                     </tr>
                     </thead>
@@ -260,28 +268,48 @@ $parts = $summary['participation_details'] ?? [];
                     <?php foreach ($tabRows as $r): ?>
                         <tr>
                             <?php if ($tab === 'cuentas'): ?>
-                                <td><a href="<?= e(url('/cuentas/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/cuentas/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['type'] === 'mercadopago' ? 'Mercado Pago' : $r['type']) ?></td>
                                 <td><?= e($r['currency_code']) ?></td>
                                 <td class="num"><?= e(money($r['balance'], $r['currency_code'])) ?></td>
                             <?php elseif ($tab === 'activos'): ?>
-                                <td><a href="<?= e(url('/activos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/activos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['account_name'] ?? '—') ?></td>
                                 <td><?= e($r['category']) ?></td>
                                 <td class="num"><?= e(money($r['current_value'], $r['currency_code'])) ?></td>
                             <?php elseif ($tab === 'pasivos'): ?>
-                                <td><a href="<?= e(url('/pasivos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/pasivos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['liability_type']) ?></td>
                                 <td class="num"><?= e(money($r['outstanding_amount'], $r['currency_code'])) ?></td>
                                 <td><?= e($r['status']) ?></td>
                             <?php elseif ($tab === 'propiedades'): ?>
-                                <td><a href="<?= e(url('/propiedades/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/propiedades/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['property_type']) ?></td>
                                 <td class="num"><?= e(money($r['current_value'], $r['currency_code'])) ?></td>
                             <?php elseif ($tab === 'cobrables'): ?>
-                                <td><a href="<?= e(url('/cobrables/' . $r['id'] . '/editar')) ?>"><?= e($r['debtor_name']) ?></a></td>
+                                <?php
+                                $st = (string) ($r['status'] ?? 'current');
+                                $stLabels = [
+                                    'current' => 'Al día',
+                                    'overdue' => 'Vencido',
+                                    'paid' => 'Pago',
+                                    'uncollectible' => 'Incobrable',
+                                    'cancelled' => 'Cancelado',
+                                ];
+                                $returnTo = '/personas/' . (int) $person['id'] . '?tab=cobrables&currency=' . urlencode($currency);
+                                ?>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/cobrables/' . $r['id'] . '/editar')) ?>"><?= e($r['debtor_name']) ?></a><?php else: ?><?= e($r['debtor_name']) ?><?php endif; ?></td>
                                 <td class="num"><?= e(money($r['outstanding_amount'], $r['currency_code'])) ?></td>
-                                <td><?= e($r['status']) ?></td>
+                                <td><span class="badge"><?= e($stLabels[$st] ?? $st) ?></span></td>
+                                <?php if ($canWrite): ?>
+                                <td class="actions">
+                                    <?php if ($st !== 'paid'): ?>
+                                        <a href="<?= e(url('/cobrables/' . $r['id'] . '/pagar?return_to=' . rawurlencode($returnTo))) ?>">Cobrar</a>
+                                    <?php else: ?>
+                                        —
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
                             <?php elseif ($tab === 'movimientos'): ?>
                                 <td><?= e(substr((string) $r['occurred_at'], 0, 16)) ?></td>
                                 <td><?= e(movement_type_label((string) $r['type'])) ?></td>

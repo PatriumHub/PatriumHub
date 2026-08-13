@@ -2,6 +2,7 @@
 $tabs = [
     'resumen' => 'Resumen',
     'cuentas' => 'Cuentas',
+    'estados-proyeccion' => 'Estados y proyección',
     'activos' => 'Activos varios',
     'pasivos' => 'Pasivos',
     'propiedades' => 'Propiedades',
@@ -13,6 +14,7 @@ $tabs = [
     'valuacion' => 'Valuación',
 ];
 $companyPath = '/empresas/' . (int) $company['id'];
+$canWrite = !empty($canWrite);
 $valuations = $valuations ?? [];
 $valuation = $valuation ?? ['value' => 0, 'source' => '', 'is_manual' => false, 'auto_value' => 0];
 $health = $health ?? ['status' => 'warn', 'label' => '—', 'reasons' => []];
@@ -22,9 +24,10 @@ $net = (float) ($summary['net_worth'] ?? 0);
     <div class="page-head">
         <div>
             <h1><?= e($company['name']) ?></h1>
-            <p class="lede"><?= e($company['legal_name'] ?? 'Empresa') ?><?= $company['industry'] ? ' · ' . e($company['industry']) : '' ?></p>
+            <p class="lede"><?= e($company['legal_name'] ?? 'Empresa') ?><?= $company['industry'] ? ' · ' . e($company['industry']) : '' ?><?= $canWrite ? '' : ' · Solo lectura' ?></p>
         </div>
         <div class="actions">
+            <?php if ($canWrite): ?>
             <form method="post" action="<?= e(url('/dashboard/snapshot')) ?>" class="inline">
                 <?= csrf_field() ?>
                 <input type="hidden" name="mode" value="entity">
@@ -34,6 +37,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 <button type="submit" class="btn ghost">Capturar snapshot</button>
             </form>
             <a class="btn ghost" href="<?= e(url($companyPath . '/editar')) ?>">Editar</a>
+            <?php endif; ?>
             <a class="btn ghost" href="<?= e(url('/empresas')) ?>">Volver</a>
         </div>
     </div>
@@ -46,26 +50,232 @@ $net = (float) ($summary['net_worth'] ?? 0);
         <?php endforeach; ?>
     </nav>
 
-    <?php if ($tab === 'participaciones'): ?>
+    <?php if ($tab === 'estados-proyeccion'): ?>
+        <?php
+        $fp = $financialPlan ?? null;
+        $fpWorkbook = $fp['workbook'] ?? ['version' => 2, 'activeYear' => 0, 'years' => []];
+        $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        ?>
+        <?php
+        $fpTemplate = (($fpWorkbook['template'] ?? 'services') === 'products') ? 'products' : 'services';
+        $fpIsProducts = $fpTemplate === 'products';
+        ?>
+        <div class="mt" id="fp-root"
+             data-save-url="<?= e(url($companyPath . '/estados-proyeccion')) ?>"
+             data-csrf="<?= e(csrf_token()) ?>"
+             data-template="<?= e($fpTemplate) ?>"
+             data-readonly="<?= $canWrite ? '0' : '1' ?>">
+
+            <details class="fp-fold panel" id="fp-fold-compare" open>
+                <summary class="fp-fold-summary">
+                    <div>
+                        <h2 style="margin:0">Comparativa por año</h2>
+                        <p class="muted" style="margin:0.2rem 0 0">Línea y barras por mes; torta anual.</p>
+                    </div>
+                </summary>
+                <div class="fp-fold-body">
+                    <div id="fp-all-years-kpis" class="fp-all-kpis" aria-live="polite"></div>
+
+                    <div class="fp-chart-toolbar">
+                        <div class="fp-chart-tabs" id="fp-chart-tabs" role="tablist">
+                            <button type="button" class="fp-sheet-tab is-active" data-chart="line">Línea</button>
+                            <button type="button" class="fp-sheet-tab" data-chart="bar">Barras</button>
+                            <button type="button" class="fp-sheet-tab" data-chart="doughnut">Torta</button>
+                        </div>
+                        <label class="fp-pie-year-wrap" id="fp-pie-year-wrap">
+                            Año
+                            <select id="fp-pie-year" class="fp-rate-input" style="width:auto;min-width:5.5rem"></select>
+                        </label>
+                    </div>
+                    <div class="fp-chart-wrap">
+                        <canvas id="fp-compare-chart" aria-label="Comparativa por mes"></canvas>
+                    </div>
+                    <p class="muted fp-chart-hint" id="fp-chart-hint">Pasá el mouse para ver montos. En la leyenda podés ocultar series.</p>
+
+                    <div class="fp-section-head mt">
+                        <div>
+                            <h3 style="margin:0">Comparativa entre años</h3>
+                            <p class="muted" style="margin:0.2rem 0 0">Ganancia neta, egresos y ahorro anuales de todos los años.</p>
+                        </div>
+                        <div class="fp-chart-tabs" id="fp-years-chart-tabs" role="tablist">
+                            <button type="button" class="fp-sheet-tab is-active" data-years-chart="bar">Barras</button>
+                            <button type="button" class="fp-sheet-tab" data-years-chart="line">Línea</button>
+                        </div>
+                    </div>
+                    <div class="fp-chart-wrap fp-chart-wrap-sm">
+                        <canvas id="fp-years-chart" aria-label="Comparativa entre años"></canvas>
+                    </div>
+                </div>
+            </details>
+
+            <details class="fp-fold panel mt" id="fp-fold-detail" open>
+                <summary class="fp-fold-summary">
+                    <div>
+                        <h2 style="margin:0">Detalle del año</h2>
+                        <p class="muted" style="margin:0.2rem 0 0"><?= $canWrite ? 'Ingresos, egresos y resumen mensual editables.' : 'Ingresos, egresos y resumen mensual (solo lectura).' ?></p>
+                    </div>
+                </summary>
+                <div class="fp-fold-body">
+                    <div class="fp-toolbar">
+                        <div class="fp-toolbar-actions">
+                            <label class="fp-rate-label">Ahorro
+                                <input type="number" id="fp-savings-rate" min="0" max="100" step="0.5" class="fp-rate-input"<?= $canWrite ? '' : ' disabled' ?>> %
+                            </label>
+                            <span id="fp-status" class="fp-status"></span>
+                            <?php if ($canWrite): ?>
+                            <button type="button" class="btn ghost" id="fp-add-year">+ Año</button>
+                            <button type="button" class="btn" id="fp-save">Guardar</button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div id="fp-year-tabs" class="fp-sheet-tabs"></div>
+                    <div id="fp-kpis" class="fp-kpis"></div>
+
+                    <div id="fp-clients-section" class="<?= $fpIsProducts ? 'is-hidden' : '' ?>">
+                        <div class="fp-section-head mt">
+                            <div>
+                                <h3 style="margin:0">Ingresos por cliente</h3>
+                                <p class="muted" style="margin:0.2rem 0 0">Montos mensuales proyectados o reales.</p>
+                            </div>
+                            <?php if ($canWrite): ?>
+                            <button type="button" class="btn ghost" id="fp-add-client">+ Cliente</button>
+                            <?php endif; ?>
+                        </div>
+                        <div class="fp-table-scroll">
+                            <table class="table fp-edit-table">
+                                <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                                    <th class="num">Total</th>
+                                    <th></th>
+                                </tr>
+                                </thead>
+                                <tbody id="fp-clients-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="fp-products-income-section" class="<?= $fpIsProducts ? '' : 'is-hidden' ?>">
+                        <div class="fp-section-head mt">
+                            <div>
+                                <h3 style="margin:0">Ingresos del mes</h3>
+                                <p class="muted" style="margin:0.2rem 0 0">Total de ingresos por mes (sin desglose por cliente).</p>
+                            </div>
+                        </div>
+                        <div class="fp-table-scroll">
+                            <table class="table fp-edit-table">
+                                <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                                    <th class="num">Total</th>
+                                </tr>
+                                </thead>
+                                <tbody id="fp-products-income-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="fp-section-head mt">
+                        <div>
+                            <h3 style="margin:0">Egresos / costos</h3>
+                            <p class="muted" style="margin:0.2rem 0 0">Salarios, proveedores y costos fijos o variables.</p>
+                        </div>
+                        <?php if ($canWrite): ?>
+                        <button type="button" class="btn ghost" id="fp-add-expense">+ Costo</button>
+                        <?php endif; ?>
+                    </div>
+                    <div class="fp-table-scroll">
+                        <table class="table fp-edit-table">
+                            <thead>
+                            <tr>
+                                <th>Concepto</th>
+                                <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                                <th class="num">Total</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody id="fp-expenses-body"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="fp-section-head mt">
+                        <div>
+                            <h3 style="margin:0">Resumen mensual</h3>
+                            <p class="muted" style="margin:0.2rem 0 0">Se calcula solo; no hace falta editarlo.</p>
+                        </div>
+                        <label class="fp-split-label">Dividir ganancia entre
+                            <input type="number" id="fp-profit-split-n" class="fp-split-input" min="1" max="99" step="1" value="1"<?= $canWrite ? '' : ' disabled' ?>>
+                            personas
+                        </label>
+                    </div>
+                    <div class="fp-table-scroll">
+                        <table class="table fp-summary-table">
+                            <thead>
+                            <tr>
+                                <th></th>
+                                <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                                <th class="num">Anual</th>
+                            </tr>
+                            </thead>
+                            <tbody id="fp-summary-body"></tbody>
+                        </table>
+                    </div>
+                    <p class="fp-hint">
+                        Ctrl+S guarda.
+                        <?php if (!empty($fp['updated_at'])): ?>
+                            Último guardado: <?= e((string) $fp['updated_at']) ?>
+                        <?php endif; ?>
+                    </p>
+                </div>
+            </details>
+
+            <script type="application/json" id="fp-workbook"><?= json_encode($fpWorkbook, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
+            <?php /* Cargar DESPUÉS de Chart.js (defer al final del layout) para que los gráficos monten bien */ ?>
+            <script>
+            (function () {
+              var src = <?= json_encode(url('/assets/js/financial-plan.js'), JSON_UNESCAPED_SLASHES) ?>;
+              function loadFp() {
+                if (document.querySelector('script[data-fp-plan]')) return;
+                var s = document.createElement('script');
+                s.src = src;
+                s.dataset.fpPlan = '1';
+                document.body.appendChild(s);
+              }
+              if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadFp);
+              } else {
+                loadFp();
+              }
+            })();
+            </script>
+        </div>
+
+    <?php elseif ($tab === 'participaciones'): ?>
         <div class="panel mt">
             <div class="page-head">
                 <div>
                     <h2>Dueños / participaciones</h2>
                     <p class="muted" style="margin:0">Quién es dueño y en qué %. La valuación de la empresa está en su pestaña.</p>
                 </div>
+                <?php if ($canWrite): ?>
                 <a class="btn" href="<?= e(url('/participaciones/nueva?company_entity_id=' . $company['id'])) ?>">+ Dueño</a>
+                <?php endif; ?>
             </div>
             <?php if (empty($ownerships)): ?>
                 <p class="muted">Sin dueños cargados. El patrimonio personal no atribuirá valor de esta empresa.</p>
             <?php else: ?>
                 <table class="table">
-                    <thead><tr><th>Dueño</th><th class="num">%</th><th></th></tr></thead>
+                    <thead><tr><th>Dueño</th><th class="num">%</th><?php if ($canWrite): ?><th></th><?php endif; ?></tr></thead>
                     <tbody>
                     <?php foreach ($ownerships as $o): ?>
                         <tr>
                             <td><?= e($o['owner_name']) ?></td>
                             <td class="num"><?= e(number_format((float) $o['ownership_pct'], 2, ',', '.')) ?>%</td>
+                            <?php if ($canWrite): ?>
                             <td class="actions"><a href="<?= e(url('/participaciones/' . $o['id'] . '/editar')) ?>">Editar</a></td>
+                            <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -101,6 +311,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                     <li>Patrimonio neto: <strong><?= e(money($net, $currency)) ?></strong></li>
                     <li>Valuación auto: <strong><?= e(money($valuation['auto_value'] ?? $net, $currency)) ?></strong></li>
                 </ul>
+                <?php if ($canWrite): ?>
                 <form method="post" action="<?= e(url('/valuaciones')) ?>" class="mt">
                     <?= csrf_field() ?>
                     <input type="hidden" name="company_entity_id" value="<?= (int) $company['id'] ?>">
@@ -108,6 +319,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                     <input type="hidden" name="method" value="patrimonio_neto">
                     <button type="submit" class="btn ghost">Usar a patrimonio neto</button>
                 </form>
+                <?php endif; ?>
             </div>
             <div class="panel">
                 <h2>Por múltiplo de ventas</h2>
@@ -121,6 +333,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 <?php if (!$sv['has_sales']): ?>
                     <p class="muted mt">Sin ventas sync en esta moneda. Conectá WC/MP y sincronizá.</p>
                 <?php endif; ?>
+                <?php if ($canWrite): ?>
                 <form method="post" action="<?= e(url('/valuaciones')) ?>" class="form-grid mt" style="padding:0;box-shadow:none;border:0;background:transparent">
                     <?= csrf_field() ?>
                     <input type="hidden" name="company_entity_id" value="<?= (int) $company['id'] ?>">
@@ -133,8 +346,10 @@ $net = (float) ($summary['net_worth'] ?? 0);
                         <button type="submit" class="btn" <?= $sv['has_sales'] ? '' : 'disabled' ?>>Aplicar como valuación</button>
                     </div>
                 </form>
+                <?php endif; ?>
             </div>
         </div>
+        <?php if ($canWrite): ?>
         <div class="panel mt">
             <h2>Override manual</h2>
             <p class="muted">Cualquier número fijo; las participaciones usarán este valor.</p>
@@ -161,6 +376,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 <div class="form-actions span-2"><button type="submit">Guardar override</button></div>
             </form>
         </div>
+        <?php endif; ?>
         <?php if (!empty($valuations)): ?>
             <div class="panel mt">
                 <h2>Historial</h2>
@@ -334,12 +550,13 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 <div class="stat tone-blue">
                     <span class="stat-label">Cuentas</span>
                     <span class="stat-value" style="font-size:1.1rem">
-                        <a href="<?= e(url('/cuentas?entity_id=' . (int) $company['id'] . '&currency=' . urlencode($currency))) ?>">Ver saldos →</a>
+                        <a href="<?= e(url($companyPath . '?tab=cuentas&currency=' . urlencode($currency))) ?>">Ver saldos →</a>
                     </span>
                 </div>
             </div>
         </div>
 
+        <?php if ($canWrite): ?>
         <div class="company-section panel tone-coral">
             <div class="page-head" style="margin-bottom:0.75rem">
                 <h2 style="margin:0">Movimiento de caja</h2>
@@ -399,6 +616,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
             </form>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
 
         <div class="charts-grid company-section">
             <div class="chart-card tone-amber">
@@ -471,7 +689,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 'movimientos' => '/movimientos/nuevo?entity_id=' . $company['id'],
                 'integraciones' => '/integraciones/woocommerce/nueva?entity_id=' . $company['id'],
             ];
-            if (isset($newLinks[$tab])): ?>
+            if ($canWrite && isset($newLinks[$tab])): ?>
                 <a class="btn" href="<?= e(url($newLinks[$tab])) ?>">Agregar</a>
             <?php endif; ?>
         </div>
@@ -487,53 +705,75 @@ $net = (float) ($summary['net_worth'] ?? 0);
                         <?php if ($tab === 'pasivos'): ?><th>Nombre</th><th>Tipo</th><th class="num">Saldo</th><th>Estado</th><?php endif; ?>
                         <?php if ($tab === 'propiedades'): ?><th>Nombre</th><th>Tipo</th><th class="num">Valor</th><?php endif; ?>
                         <?php if ($tab === 'inventario'): ?><th>Nombre</th><th>Fuente</th><th class="num">Valor</th><th class="num">Unidades</th><?php endif; ?>
-                        <?php if ($tab === 'cobrables'): ?><th>Deudor</th><th class="num">Pendiente</th><th>Estado</th><?php endif; ?>
+                        <?php if ($tab === 'cobrables'): ?><th>Deudor</th><th class="num">Pendiente</th><th>Estado</th><?php if ($canWrite): ?><th></th><?php endif; ?><?php endif; ?>
                         <?php if ($tab === 'movimientos'): ?><th>Fecha</th><th>Tipo</th><th>Cuenta</th><th class="num">Importe</th><?php endif; ?>
-                        <?php if ($tab === 'integraciones'): ?><th>Nombre</th><th>Proveedor</th><th>Estado</th><th>Última sync</th><th></th><?php endif; ?>
+                        <?php if ($tab === 'integraciones'): ?><th>Nombre</th><th>Proveedor</th><th>Estado</th><th>Última sync</th><?php if ($canWrite): ?><th></th><?php endif; ?><?php endif; ?>
                     </tr>
                     </thead>
                     <tbody>
                     <?php foreach ($tabRows as $r): ?>
                         <tr>
                             <?php if ($tab === 'cuentas'): ?>
-                                <td><a href="<?= e(url('/cuentas/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/cuentas/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['type'] === 'mercadopago' ? 'Mercado Pago' : $r['type']) ?></td>
                                 <td><?= e($r['currency_code']) ?></td>
                                 <td class="num"><?= e(money($r['balance'], $r['currency_code'])) ?></td>
                             <?php elseif ($tab === 'activos'): ?>
-                                <td><a href="<?= e(url('/activos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/activos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['account_name'] ?? '—') ?></td>
                                 <td><?= e($r['category']) ?></td>
                                 <td class="num"><?= e(money($r['current_value'], $r['currency_code'])) ?></td>
                             <?php elseif ($tab === 'pasivos'): ?>
-                                <td><a href="<?= e(url('/pasivos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/pasivos/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['liability_type']) ?></td>
                                 <td class="num"><?= e(money($r['outstanding_amount'], $r['currency_code'])) ?></td>
                                 <td><?= e($r['status']) ?></td>
                             <?php elseif ($tab === 'propiedades'): ?>
-                                <td><a href="<?= e(url('/propiedades/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/propiedades/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['property_type']) ?></td>
                                 <td class="num"><?= e(money($r['current_value'], $r['currency_code'])) ?></td>
                             <?php elseif ($tab === 'inventario'): ?>
-                                <td><a href="<?= e(url('/inventario/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/inventario/' . $r['id'] . '/editar')) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['source']) ?></td>
                                 <td class="num"><?= e(money($r['stock_value'], $r['currency_code'])) ?></td>
                                 <td class="num"><?= e(number_format((float) $r['units_total'], 2, ',', '.')) ?></td>
                             <?php elseif ($tab === 'cobrables'): ?>
-                                <td><a href="<?= e(url('/cobrables/' . $r['id'] . '/editar')) ?>"><?= e($r['debtor_name']) ?></a></td>
+                                <?php
+                                $st = (string) ($r['status'] ?? 'current');
+                                $stLabels = [
+                                    'current' => 'Al día',
+                                    'overdue' => 'Vencido',
+                                    'paid' => 'Pago',
+                                    'uncollectible' => 'Incobrable',
+                                    'cancelled' => 'Cancelado',
+                                ];
+                                $returnTo = $companyPath . '?tab=cobrables&currency=' . urlencode($currency);
+                                ?>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/cobrables/' . $r['id'] . '/editar')) ?>"><?= e($r['debtor_name']) ?></a><?php else: ?><?= e($r['debtor_name']) ?><?php endif; ?></td>
                                 <td class="num"><?= e(money($r['outstanding_amount'], $r['currency_code'])) ?></td>
-                                <td><?= e($r['status']) ?></td>
+                                <td><span class="badge"><?= e($stLabels[$st] ?? $st) ?></span></td>
+                                <?php if ($canWrite): ?>
+                                <td class="actions">
+                                    <?php if ($st !== 'paid'): ?>
+                                        <a href="<?= e(url('/cobrables/' . $r['id'] . '/pagar?return_to=' . rawurlencode($returnTo))) ?>">Cobrar</a>
+                                    <?php else: ?>
+                                        —
+                                    <?php endif; ?>
+                                </td>
+                                <?php endif; ?>
                             <?php elseif ($tab === 'movimientos'): ?>
                                 <td><?= e(substr((string) $r['occurred_at'], 0, 16)) ?></td>
                                 <td><?= e(movement_type_label((string) $r['type'])) ?></td>
                                 <td><?= e($r['account_name'] ?? '—') ?></td>
                                 <td class="num"><?= money_flow($r['amount'], $r['currency_code'], (string) $r['type']) ?></td>
                             <?php elseif ($tab === 'integraciones'): ?>
-                                <td><a href="<?= e(url('/integraciones/' . $r['id'])) ?>"><?= e($r['name']) ?></a></td>
+                                <td><?php if ($canWrite): ?><a href="<?= e(url('/integraciones/' . $r['id'])) ?>"><?= e($r['name']) ?></a><?php else: ?><?= e($r['name']) ?><?php endif; ?></td>
                                 <td><?= e($r['provider']) ?></td>
                                 <td><?= e($r['status']) ?></td>
                                 <td><?= e($r['last_sync_at'] ?? 'Nunca') ?></td>
+                                <?php if ($canWrite): ?>
                                 <td class="actions"><a href="<?= e(url('/integraciones/' . $r['id'])) ?>">Ver</a></td>
+                                <?php endif; ?>
                             <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>

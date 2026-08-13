@@ -6,7 +6,7 @@ final class AssetController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = Database::pdo()->query(
             "SELECT a.*, e.name AS entity_name, e.type AS entity_type, ac.name AS account_name
              FROM assets a
@@ -24,7 +24,7 @@ final class AssetController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('assets/form', [
             'title' => 'Nuevo activo',
             'asset' => [
@@ -46,7 +46,7 @@ final class AssetController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $entityId = request_int('entity_id');
         $name = post_string('name');
@@ -125,7 +125,7 @@ final class AssetController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $asset = self::find((int) $id);
         if (!$asset) {
             flash('error', 'Activo no encontrado.');
@@ -143,7 +143,7 @@ final class AssetController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $assetId = (int) $id;
         $before = self::find($assetId);

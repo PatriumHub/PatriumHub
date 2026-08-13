@@ -6,7 +6,7 @@ final class PropertyController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = Database::pdo()->query(
             "SELECT p.*, e.name AS entity_name
              FROM properties p
@@ -23,7 +23,7 @@ final class PropertyController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('properties/form', [
             'title' => 'Nueva propiedad',
             'property' => [
@@ -44,7 +44,7 @@ final class PropertyController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $entityId = request_int('entity_id');
         $name = post_string('name');
@@ -71,7 +71,7 @@ final class PropertyController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $property = self::find((int) $id);
         if (!$property) {
             flash('error', 'Propiedad no encontrada.');
@@ -89,7 +89,7 @@ final class PropertyController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $propertyId = (int) $id;
         $before = self::find($propertyId);

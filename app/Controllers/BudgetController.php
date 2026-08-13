@@ -6,7 +6,7 @@ final class BudgetController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $period = BudgetService::normalizePeriod((string) ($_GET['period'] ?? date('Y-m')));
         $entityId = request_int('entity_id');
         $currency = $_GET['currency'] ?? 'ARS';
@@ -38,7 +38,7 @@ final class BudgetController
 
     public static function templates(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $rows = BudgetService::templates(null);
         $grouped = [];
         foreach ($rows as $row) {
@@ -66,7 +66,7 @@ final class BudgetController
 
     public static function createTemplate(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         view('budgets/template_form', [
             'title' => 'Nuevo gasto',
             'item' => [
@@ -93,7 +93,7 @@ final class BudgetController
 
     public static function storeTemplate(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $payload = self::templatePayload();
         if ($payload === null) {
@@ -123,7 +123,7 @@ final class BudgetController
 
     public static function editTemplate(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $item = BudgetService::findTemplate((int) $id);
         if (!$item) {
             flash('error', 'Gasto no encontrado.');
@@ -147,7 +147,7 @@ final class BudgetController
 
     public static function updateTemplate(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $tplId = (int) $id;
         $before = BudgetService::findTemplate($tplId);
@@ -176,7 +176,7 @@ final class BudgetController
 
     public static function payItem(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $itemId = (int) $id;
         $period = BudgetService::normalizePeriod((string) ($_POST['period'] ?? date('Y-m')));
@@ -216,7 +216,7 @@ final class BudgetController
 
     public static function skipItem(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $period = BudgetService::normalizePeriod((string) ($_POST['period'] ?? date('Y-m')));
         try {
@@ -230,7 +230,7 @@ final class BudgetController
 
     public static function revertItem(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $period = BudgetService::normalizePeriod((string) ($_POST['period'] ?? date('Y-m')));
         $entityId = request_int('entity_id');
@@ -249,7 +249,7 @@ final class BudgetController
 
     public static function deleteItem(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $period = BudgetService::normalizePeriod((string) ($_POST['period'] ?? date('Y-m')));
         $entityId = request_int('entity_id');
@@ -268,7 +268,7 @@ final class BudgetController
 
     public static function destroyTemplate(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         try {
             BudgetService::deleteTemplate((int) $id);

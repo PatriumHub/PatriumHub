@@ -15,10 +15,19 @@ final class PeopleController
              WHERE e.type = 'person'
              ORDER BY e.name"
         )->fetchAll();
+        $allowed = UserService::allowedEntityIds();
+        if ($allowed !== null) {
+            $set = array_fill_keys($allowed, true);
+            $rows = array_values(array_filter(
+                $rows,
+                static fn (array $r): bool => isset($set[(int) $r['id']])
+            ));
+        }
 
         view('people/index', [
             'title' => 'Personas',
             'rows' => $rows,
+            'canWrite' => Auth::canWrite(),
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
@@ -26,7 +35,7 @@ final class PeopleController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         view('people/form', [
             'title' => 'Nueva persona',
             'person' => null,
@@ -36,7 +45,7 @@ final class PeopleController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         require_csrf();
 
         $first = post_string('first_name');
@@ -92,6 +101,7 @@ final class PeopleController
             flash('error', 'Persona no encontrada.');
             redirect('/personas');
         }
+        UserService::requireEntityAccess((int) $person['id']);
 
         $tab = $_GET['tab'] ?? 'resumen';
         $allowed = [
@@ -115,6 +125,7 @@ final class PeopleController
             'currencies' => Catalog::currencies(),
             'ownerships' => self::ownerships($entityId),
             'health' => ValuationService::health($summary, $entityId),
+            'canWrite' => Auth::canWrite(),
             'success' => flash('success'),
             'error' => flash('error'),
         ];
@@ -145,22 +156,53 @@ final class PeopleController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         $person = self::find((int) $id);
         if (!$person) {
             flash('error', 'Persona no encontrada.');
             redirect('/personas');
         }
+        UserService::requireEntityAccess((int) $person['id']);
         view('people/form', [
             'title' => 'Editar persona',
             'person' => $person,
+            'deleteCounts' => EntityService::dependencyCounts((int) $person['id']),
             'error' => flash('error'),
         ]);
     }
 
+    public static function destroy(string $id): void
+    {
+        Auth::requireWrite();
+        require_csrf();
+        $entityId = (int) $id;
+        $person = self::find($entityId);
+        if (!$person) {
+            flash('error', 'Persona no encontrada.');
+            redirect('/personas');
+        }
+        UserService::requireEntityAccess($entityId);
+
+        $confirm = trim(post_string('confirm_name'));
+        if ($confirm === '' || mb_strtolower($confirm) !== mb_strtolower((string) $person['name'])) {
+            flash('error', 'Para eliminar, escribí el nombre exacto de la persona.');
+            redirect('/personas/' . $entityId . '/editar');
+        }
+
+        $before = $person;
+        $result = EntityService::delete($entityId, 'person');
+        if (!$result['ok']) {
+            flash('error', 'No se pudo eliminar: ' . ($result['error'] ?? 'error desconocido'));
+            redirect('/personas/' . $entityId . '/editar');
+        }
+        AuditService::log('delete', 'person', $entityId, 'Eliminación persona: ' . ($before['name'] ?? ''), $before, null);
+        flash('success', 'Persona eliminada.');
+        redirect('/personas');
+    }
+
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         require_csrf();
         $entityId = (int) $id;
         $before = self::find($entityId);

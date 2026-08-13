@@ -22,6 +22,17 @@
         <label>Rubro
             <input name="industry" value="<?= e($c['industry'] ?? '') ?>">
         </label>
+        <?php $bm = ($c['business_model'] ?? 'services') === 'products' ? 'products' : 'services'; ?>
+        <label class="full">Tipo de negocio *
+            <select name="business_model" required>
+                <option value="services"<?= $bm === 'services' ? ' selected' : '' ?>>Servicios — proyección por cliente</option>
+                <option value="products"<?= $bm === 'products' ? ' selected' : '' ?>>Productos — proyección por mes (total de ingresos)</option>
+            </select>
+            <span class="hint" style="display:block;margin-top:0.35rem">
+                Define la plantilla de <strong>Estados y proyección</strong>.
+                Si cambiás el tipo en una empresa existente, usá <em>Restablecer</em> en esa pestaña para regenerar la plantilla.
+            </span>
+        </label>
         <label>País
             <input name="country" value="<?= e($c['country'] ?? '') ?>">
         </label>
@@ -45,4 +56,34 @@
         </label>
         <div class="full"><button type="submit">Guardar</button></div>
     </form>
+
+    <?php if ($isEdit): ?>
+        <?php
+        $counts = $deleteCounts ?? [];
+        $confirmMsg = EntityService::confirmMessage((string) ($c['name'] ?? ''), $counts);
+        $nonZero = array_filter($counts, static fn ($n) => (int) $n > 0);
+        ?>
+        <div class="panel mt" style="border-color: rgba(240, 113, 120, 0.35)">
+            <h2 style="margin:0;color:var(--danger)">Eliminar empresa</h2>
+            <p class="muted">Borra la empresa y todo lo asociado (cuentas, movimientos, proyección, etc.). No se puede deshacer.</p>
+            <?php if ($nonZero !== []): ?>
+                <ul class="plain">
+                    <?php foreach ($nonZero as $label => $n): ?>
+                        <li><?= e(str_replace('_', ' ', (string) $label)) ?>: <strong><?= (int) $n ?></strong></li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+            <form method="post" action="<?= e(url('/empresas/' . (int) $c['id'] . '/eliminar')) ?>" class="form-grid mt"
+                  style="padding:0;border:0;box-shadow:none;background:transparent"
+                  onsubmit="return confirm(<?= json_encode($confirmMsg, JSON_UNESCAPED_UNICODE) ?>);">
+                <?= csrf_field() ?>
+                <label class="full">Escribí el nombre exacto para confirmar: <strong><?= e($c['name'] ?? '') ?></strong>
+                    <input name="confirm_name" required autocomplete="off" placeholder="<?= e($c['name'] ?? '') ?>">
+                </label>
+                <div class="full">
+                    <button type="submit" class="btn danger">Eliminar empresa</button>
+                </div>
+            </form>
+        </div>
+    <?php endif; ?>
 </section>

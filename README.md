@@ -1,9 +1,11 @@
 # PatriumHub
 
+App PHP monolítica de patrimonio personal / multiempresa.
+
 ## Deploy (sin tocar Apache)
 
 1. Copiá esta carpeta a `/var/www/html/patrium` (tiene que haber `index.php` ahí).
-2. Importá `../databases/patriumhub.sql` en phpMyAdmin.
+2. Importá **`../databases/patriumhub.sql`** en phpMyAdmin (único archivo de instalación, schema 0.8.0).
 3. `.env`:
 
 ```env
@@ -20,3 +22,9 @@ DB_PASS=tu_clave_mysql
 Las pantallas usan URLs tipo `/patrium/index.php?r=/login` (no hace falta tocar Apache).
 
 Prueba rápida: `/patrium/ok.php` → debe decir PatriumHub OK.
+
+## Docs
+
+- Arquitectura: `../Arquitectura/`
+- Guía de uso: `../Guia_De_Uso/`
+- BD: `../databases/README.md`

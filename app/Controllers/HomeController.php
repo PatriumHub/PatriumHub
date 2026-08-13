@@ -6,7 +6,7 @@ final class HomeController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
 
         $currency = $_GET['currency'] ?? 'ARS';
         $mode = $_GET['mode'] ?? 'consolidated';

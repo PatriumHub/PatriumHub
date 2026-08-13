@@ -6,7 +6,7 @@ final class AccountController
 {
     public static function index(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $entityId = request_int('entity_id');
         $currency = trim((string) ($_GET['currency'] ?? 'ARS')) ?: 'ARS';
 
@@ -124,7 +124,7 @@ final class AccountController
 
     public static function export(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $entityId = request_int('entity_id');
         $sql = "SELECT e.name AS entity_name, a.name, a.type, a.currency_code, a.balance,
                        a.balance_held, a.provider, a.status, a.include_in_net_worth
@@ -160,7 +160,7 @@ final class AccountController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $type = post_string('type') ?: (string) ($_GET['type'] ?? 'bank');
         $allowed = ['bank', 'checking', 'savings', 'wallet', 'mercadopago', 'cash', 'broker', 'virtual', 'other'];
         if (!in_array($type, $allowed, true)) {
@@ -186,7 +186,7 @@ final class AccountController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $entityId = request_int('entity_id');
         $name = post_string('name');
@@ -245,7 +245,7 @@ final class AccountController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         $account = self::find((int) $id);
         if (!$account) {
             flash('error', 'Cuenta no encontrada.');
@@ -262,7 +262,7 @@ final class AccountController
 
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $accountId = (int) $id;
         $before = self::find($accountId);
@@ -325,7 +325,7 @@ final class AccountController
 
     public static function destroy(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $accountId = (int) $id;
         $account = self::find($accountId);

@@ -32,6 +32,7 @@ $router->post('/personas', [PeopleController::class, 'store']);
 $router->get('/personas/{id}', [PeopleController::class, 'show']);
 $router->get('/personas/{id}/editar', [PeopleController::class, 'edit']);
 $router->post('/personas/{id}', [PeopleController::class, 'update']);
+$router->post('/personas/{id}/eliminar', [PeopleController::class, 'destroy']);
 
 $router->get('/empresas', [CompanyController::class, 'index']);
 $router->get('/empresas/nueva', [CompanyController::class, 'create']);
@@ -39,8 +40,11 @@ $router->post('/empresas', [CompanyController::class, 'store']);
 $router->get('/empresas/{id}', [CompanyController::class, 'show']);
 $router->get('/empresas/{id}/editar', [CompanyController::class, 'edit']);
 $router->post('/empresas/{id}', [CompanyController::class, 'update']);
+$router->post('/empresas/{id}/eliminar', [CompanyController::class, 'destroy']);
 $router->post('/empresas/{id}/caja', [CompanyController::class, 'storeCashMovement']);
 $router->post('/empresas/{id}/venta-caja', [CompanyController::class, 'storeCashMovement']); // alias legacy
+$router->post('/empresas/{id}/estados-proyeccion', [CompanyController::class, 'saveFinancialPlan']);
+$router->post('/empresas/{id}/estados-proyeccion/reset', [CompanyController::class, 'resetFinancialPlan']);
 
 $router->get('/cuentas', [AccountController::class, 'index']);
 $router->get('/cuentas/export', [AccountController::class, 'export']);
@@ -67,6 +71,8 @@ $router->get('/cobrables/nueva', [ReceivableController::class, 'create']);
 $router->post('/cobrables', [ReceivableController::class, 'store']);
 $router->get('/cobrables/{id}/editar', [ReceivableController::class, 'edit']);
 $router->post('/cobrables/{id}', [ReceivableController::class, 'update']);
+$router->get('/cobrables/{id}/pagar', [ReceivableController::class, 'payForm']);
+$router->post('/cobrables/{id}/pagar', [ReceivableController::class, 'pay']);
 
 $router->get('/pasivos', [LiabilityController::class, 'index']);
 $router->get('/pasivos/nuevo', [LiabilityController::class, 'create']);
@@ -100,6 +106,10 @@ $router->get('/movimientos/{id}/editar', [TransactionController::class, 'edit'])
 $router->post('/movimientos/{id}', [TransactionController::class, 'update']);
 
 $router->get('/configuracion', [SettingsController::class, 'index']);
+$router->post('/configuracion/perfil', [SettingsController::class, 'updateProfile']);
+$router->post('/configuracion/password', [SettingsController::class, 'changePassword']);
+$router->post('/configuracion/usuarios', [SettingsController::class, 'storeUser']);
+$router->post('/configuracion/usuarios/{id}', [SettingsController::class, 'updateUser']);
 $router->post('/configuracion/clave', [SettingsController::class, 'generateKey']);
 $router->post('/configuracion/ocultar-cifras', [SettingsController::class, 'toggleHideAmounts']);
 

@@ -36,6 +36,11 @@ require_once __DIR__ . '/Services/ExportService.php';
 require_once __DIR__ . '/Services/DashboardAnalyticsService.php';
 require_once __DIR__ . '/Services/ValuationService.php';
 require_once __DIR__ . '/Services/BudgetService.php';
+require_once __DIR__ . '/Services/FinancialPlanService.php';
+require_once __DIR__ . '/Services/ReceivableService.php';
+require_once __DIR__ . '/Services/CompanySchema.php';
+require_once __DIR__ . '/Services/UserService.php';
+require_once __DIR__ . '/Services/EntityService.php';
 
 foreach ([
     'AuthController',

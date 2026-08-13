@@ -1,14 +1,19 @@
+<?php $canWrite = !empty($canWrite); ?>
 <section class="page">
     <div class="page-head">
         <div>
             <h1>Personas</h1>
-            <p class="lede">Entidades personales del patrimonio</p>
+            <p class="lede"><?= $canWrite ? 'Entidades personales del patrimonio' : 'Personas asignadas a tu usuario (solo lectura)' ?></p>
         </div>
-        <a class="btn" href="<?= e(url('/personas/nueva')) ?>">Nueva persona</a>
+        <?php if ($canWrite): ?>
+            <a class="btn" href="<?= e(url('/personas/nueva')) ?>">Nueva persona</a>
+        <?php endif; ?>
     </div>
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
     <?php if (empty($rows)): ?>
-        <div class="panel empty"><p>No hay personas cargadas.</p></div>
+        <div class="panel empty">
+            <p><?= $canWrite ? 'No hay personas cargadas.' : 'No tenés personas asignadas. Pedile a un administrador que te dé acceso.' ?></p>
+        </div>
     <?php else: ?>
         <div class="panel">
             <table class="table">
@@ -30,7 +35,9 @@
                         <td><?= (int) $row['is_active'] ? 'Activa' : 'Inactiva' ?></td>
                         <td class="actions">
                             <a href="<?= e(url('/personas/' . $row['id'])) ?>">Ficha</a>
-                            · <a href="<?= e(url('/personas/' . $row['id'] . '/editar')) ?>">Editar</a>
+                            <?php if ($canWrite): ?>
+                                · <a href="<?= e(url('/personas/' . $row['id'] . '/editar')) ?>">Editar</a>
+                            <?php endif; ?>
                         </td>
                     </tr>
                 <?php endforeach; ?>

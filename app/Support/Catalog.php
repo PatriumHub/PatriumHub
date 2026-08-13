@@ -12,8 +12,35 @@ final class Catalog
             ->fetchAll();
     }
 
-    /** @return list<array{id:int,name:string,type:string}> */
+    /**
+     * Entidades activas visibles para el usuario logueado.
+     * Admin: todas. Viewer: solo las asignadas en Configuración.
+     *
+     * @return list<array{id:int,name:string,type:string}>
+     */
     public static function entities(?string $type = null): array
+    {
+        $rows = self::entitiesAll($type);
+        $allowed = UserService::allowedEntityIds();
+        if ($allowed === null) {
+            return $rows;
+        }
+        if ($allowed === []) {
+            return [];
+        }
+        $set = array_fill_keys($allowed, true);
+        return array_values(array_filter(
+            $rows,
+            static fn (array $r): bool => isset($set[(int) $r['id']])
+        ));
+    }
+
+    /**
+     * Todas las entidades activas (sin filtro de permisos). Uso admin / asignación.
+     *
+     * @return list<array{id:int,name:string,type:string}>
+     */
+    public static function entitiesAll(?string $type = null): array
     {
         if ($type !== null) {
             $stmt = Database::pdo()->prepare(

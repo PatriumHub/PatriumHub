@@ -6,7 +6,7 @@ final class SavedViewController
 {
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $user = Auth::user();
         $name = post_string('name');
@@ -31,7 +31,7 @@ final class SavedViewController
 
     public static function destroy(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireAdminArea();
         require_csrf();
         $user = Auth::user();
         SavedViewService::delete((int) $id, (int) $user['id']);

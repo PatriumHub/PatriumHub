@@ -7,18 +7,28 @@ final class CompanyController
     public static function index(): void
     {
         Auth::requireLogin();
+        CompanySchema::ensure();
         $rows = Database::pdo()->query(
             "SELECT e.id, e.name, e.country, e.is_active, e.updated_at,
-                    c.legal_name, c.tax_id, c.industry
+                    c.legal_name, c.tax_id, c.industry, c.business_model
              FROM entities e
              INNER JOIN companies c ON c.entity_id = e.id
              WHERE e.type = 'company'
              ORDER BY e.name"
         )->fetchAll();
+        $allowed = UserService::allowedEntityIds();
+        if ($allowed !== null) {
+            $set = array_fill_keys($allowed, true);
+            $rows = array_values(array_filter(
+                $rows,
+                static fn (array $r): bool => isset($set[(int) $r['id']])
+            ));
+        }
 
         view('companies/index', [
             'title' => 'Empresas',
             'rows' => $rows,
+            'canWrite' => Auth::canWrite(),
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
@@ -26,7 +36,7 @@ final class CompanyController
 
     public static function create(): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         view('companies/form', [
             'title' => 'Nueva empresa',
             'company' => null,
@@ -37,14 +47,16 @@ final class CompanyController
 
     public static function store(): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         require_csrf();
 
+        CompanySchema::ensure();
         $name = post_string('name');
         if ($name === '') {
             flash('error', 'El nombre es obligatorio.');
             redirect('/empresas/nueva');
         }
+        $businessModel = CompanySchema::normalizeModel(post_string('business_model', 'services'));
 
         $pdo = Database::pdo();
         $pdo->beginTransaction();
@@ -61,13 +73,14 @@ final class CompanyController
             $id = (int) $pdo->lastInsertId();
 
             $pdo->prepare(
-                'INSERT INTO companies (entity_id, legal_name, tax_id, industry, website)
-                 VALUES (:id, :legal_name, :tax_id, :industry, :website)'
+                'INSERT INTO companies (entity_id, legal_name, tax_id, industry, business_model, website)
+                 VALUES (:id, :legal_name, :tax_id, :industry, :business_model, :website)'
             )->execute([
                 'id' => $id,
                 'legal_name' => post_string('legal_name') ?: null,
                 'tax_id' => post_string('tax_id') ?: null,
                 'industry' => post_string('industry') ?: null,
+                'business_model' => $businessModel,
                 'website' => null,
             ]);
 
@@ -85,6 +98,11 @@ final class CompanyController
             }
 
             $pdo->commit();
+            try {
+                FinancialPlanService::createForNewCompany($id, $name, $businessModel);
+            } catch (Throwable $e) {
+                // La empresa ya existe; el plan se crea al abrir el tab.
+            }
             AuditService::log('create', 'company', $id, 'Alta empresa: ' . $name);
             flash('success', 'Empresa creada.');
             redirect('/empresas/' . $id);
@@ -98,11 +116,13 @@ final class CompanyController
     public static function show(string $id): void
     {
         Auth::requireLogin();
+        CompanySchema::ensure();
         $company = self::find((int) $id);
         if (!$company) {
             flash('error', 'Empresa no encontrada.');
             redirect('/empresas');
         }
+        UserService::requireEntityAccess((int) $company['id']);
 
         $tab = $_GET['tab'] ?? 'resumen';
         if ($tab === 'dashboard') {
@@ -111,6 +131,7 @@ final class CompanyController
         $allowed = [
             'resumen', 'cuentas', 'activos', 'pasivos', 'propiedades', 'inventario',
             'cobrables', 'movimientos', 'integraciones', 'participaciones', 'valuacion',
+            'estados-proyeccion',
         ];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'resumen';
@@ -119,6 +140,11 @@ final class CompanyController
         $entityId = (int) $company['id'];
         $currency = $_GET['currency'] ?? 'ARS';
         $summary = PatrimonioService::forEntity($entityId, $currency);
+
+        $financialPlan = null;
+        if ($tab === 'estados-proyeccion') {
+            $financialPlan = FinancialPlanService::ensureForCompany($entityId, (string) $company['name']);
+        }
 
         if ($tab === 'resumen' || $tab === 'valuacion') {
             ValuationService::refreshAuto($entityId, $currency);
@@ -173,6 +199,8 @@ final class CompanyController
             'enCajaSeries' => $enCajaSeries,
             'companyAccounts' => $companyAccounts,
             'companyExtras' => $companyExtras,
+            'financialPlan' => $financialPlan,
+            'canWrite' => Auth::canWrite(),
             'success' => flash('success'),
             'error' => flash('error'),
         ];
@@ -205,36 +233,71 @@ final class CompanyController
 
     public static function edit(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
+        CompanySchema::ensure();
         $company = self::find((int) $id);
         if (!$company) {
             flash('error', 'Empresa no encontrada.');
             redirect('/empresas');
         }
+        UserService::requireEntityAccess((int) $company['id']);
         view('companies/form', [
             'title' => 'Editar empresa',
             'company' => $company,
             'people' => Catalog::entities('person'),
+            'deleteCounts' => EntityService::dependencyCounts((int) $company['id']),
             'error' => flash('error'),
         ]);
     }
 
+    public static function destroy(string $id): void
+    {
+        Auth::requireWrite();
+        require_csrf();
+        $entityId = (int) $id;
+        $company = self::find($entityId);
+        if (!$company) {
+            flash('error', 'Empresa no encontrada.');
+            redirect('/empresas');
+        }
+        UserService::requireEntityAccess($entityId);
+
+        $confirm = trim(post_string('confirm_name'));
+        if ($confirm === '' || mb_strtolower($confirm) !== mb_strtolower((string) $company['name'])) {
+            flash('error', 'Para eliminar, escribí el nombre exacto de la empresa.');
+            redirect('/empresas/' . $entityId . '/editar');
+        }
+
+        $before = $company;
+        $result = EntityService::delete($entityId, 'company');
+        if (!$result['ok']) {
+            flash('error', 'No se pudo eliminar: ' . ($result['error'] ?? 'error desconocido'));
+            redirect('/empresas/' . $entityId . '/editar');
+        }
+        AuditService::log('delete', 'company', $entityId, 'Eliminación empresa: ' . ($before['name'] ?? ''), $before, null);
+        flash('success', 'Empresa eliminada.');
+        redirect('/empresas');
+    }
+
     public static function update(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         require_csrf();
+        CompanySchema::ensure();
         $entityId = (int) $id;
         $before = self::find($entityId);
         if (!$before) {
             flash('error', 'Empresa no encontrada.');
             redirect('/empresas');
         }
+        UserService::requireEntityAccess($entityId);
 
         $name = post_string('name');
         if ($name === '') {
             flash('error', 'El nombre es obligatorio.');
             redirect('/empresas/' . $entityId . '/editar');
         }
+        $businessModel = CompanySchema::normalizeModel(post_string('business_model', 'services'));
 
         $pdo = Database::pdo();
         $pdo->beginTransaction();
@@ -252,11 +315,12 @@ final class CompanyController
             ]);
             $pdo->prepare(
                 'UPDATE companies SET legal_name = :legal_name, tax_id = :tax_id,
-                 industry = :industry WHERE entity_id = :id'
+                 industry = :industry, business_model = :business_model WHERE entity_id = :id'
             )->execute([
                 'legal_name' => post_string('legal_name') ?: null,
                 'tax_id' => post_string('tax_id') ?: null,
                 'industry' => post_string('industry') ?: null,
+                'business_model' => $businessModel,
                 'id' => $entityId,
             ]);
             $pdo->commit();
@@ -270,9 +334,75 @@ final class CompanyController
         }
     }
 
+    public static function saveFinancialPlan(string $id): void
+    {
+        Auth::requireWrite();
+        $entityId = (int) $id;
+        $company = self::find($entityId);
+        if (!$company) {
+            self::jsonResponse(['ok' => false, 'error' => 'Empresa no encontrada.'], 404);
+        }
+
+        $raw = file_get_contents('php://input');
+        $payload = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($payload)) {
+            $payload = $_POST;
+        }
+        $token = $payload['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
+        if (!verify_csrf(is_string($token) ? $token : null)) {
+            self::jsonResponse(['ok' => false, 'error' => 'CSRF inválido.'], 403);
+        }
+
+        $workbook = $payload['workbook'] ?? null;
+        if (!is_array($workbook)) {
+            self::jsonResponse(['ok' => false, 'error' => 'Falta workbook.'], 422);
+        }
+
+        try {
+            $plan = FinancialPlanService::save($entityId, $workbook);
+            AuditService::log('update', 'company_financial_plan', $entityId, 'Estados y proyección actualizados');
+            self::jsonResponse([
+                'ok' => true,
+                'workbook' => $plan['workbook'],
+                'updated_at' => $plan['updated_at'],
+            ]);
+        } catch (Throwable $e) {
+            self::jsonResponse(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public static function resetFinancialPlan(string $id): void
+    {
+        Auth::requireWrite();
+        require_csrf();
+        $entityId = (int) $id;
+        $company = self::find($entityId);
+        if (!$company) {
+            flash('error', 'Empresa no encontrada.');
+            redirect('/empresas');
+        }
+        try {
+            FinancialPlanService::reset($entityId, (string) $company['name']);
+            AuditService::log('update', 'company_financial_plan', $entityId, 'Estados y proyección restablecidos');
+            flash('success', 'Planilla restablecida a la plantilla.');
+        } catch (Throwable $e) {
+            flash('error', 'No se pudo restablecer: ' . $e->getMessage());
+        }
+        redirect('/empresas/' . $entityId . '?tab=estados-proyeccion');
+    }
+
+    /** @param array<string,mixed> $data */
+    private static function jsonResponse(array $data, int $status = 200): never
+    {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     public static function storeCashMovement(string $id): void
     {
-        Auth::requireLogin();
+        Auth::requireWrite();
         require_csrf();
         $entityId = (int) $id;
         $company = self::find($entityId);
@@ -362,8 +492,9 @@ final class CompanyController
 
     private static function find(int $id): ?array
     {
+        CompanySchema::ensure();
         $stmt = Database::pdo()->prepare(
-            "SELECT e.*, c.legal_name, c.tax_id, c.industry, c.website
+            "SELECT e.*, c.legal_name, c.tax_id, c.industry, c.business_model, c.website
              FROM entities e
              INNER JOIN companies c ON c.entity_id = e.id
              WHERE e.id = :id AND e.type = 'company'
