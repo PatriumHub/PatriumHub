@@ -41,6 +41,8 @@ require_once __DIR__ . '/Services/ReceivableService.php';
 require_once __DIR__ . '/Services/CompanySchema.php';
 require_once __DIR__ . '/Services/UserService.php';
 require_once __DIR__ . '/Services/EntityService.php';
+require_once __DIR__ . '/Services/CompanyClientService.php';
+require_once __DIR__ . '/Services/ClientDocumentService.php';
 
 foreach ([
     'AuthController',
@@ -48,6 +50,7 @@ foreach ([
     'DashboardController',
     'PeopleController',
     'CompanyController',
+    'CompanyClientController',
     'AccountController',
     'AssetController',
     'PropertyController',

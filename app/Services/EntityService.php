@@ -39,7 +39,19 @@ final class EntityService
                 'SELECT COUNT(*) FROM company_financial_plans WHERE entity_id = ?',
                 [$entityId]
             ),
+            'clientes' => self::safeCount($pdo, 'company_clients', $entityId),
         ];
+    }
+
+    private static function safeCount(\PDO $pdo, string $table, int $entityId): int
+    {
+        try {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM {$table} WHERE entity_id = ?");
+            $stmt->execute([$entityId]);
+            return (int) $stmt->fetchColumn();
+        } catch (Throwable) {
+            return 0;
+        }
     }
 
     /**

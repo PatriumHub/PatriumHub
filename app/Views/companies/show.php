@@ -1,7 +1,13 @@
 <?php
+$isServices = !empty($isServices) || (($company['business_model'] ?? 'services') === 'services');
 $tabs = [
     'resumen' => 'Resumen',
     'cuentas' => 'Cuentas',
+];
+if ($isServices) {
+    $tabs['clientes'] = 'Clientes';
+}
+$tabs += [
     'estados-proyeccion' => 'Estados y proyección',
     'activos' => 'Activos varios',
     'pasivos' => 'Pasivos',
@@ -15,6 +21,7 @@ $tabs = [
 ];
 $companyPath = '/empresas/' . (int) $company['id'];
 $canWrite = !empty($canWrite);
+$companyClients = $companyClients ?? [];
 $valuations = $valuations ?? [];
 $valuation = $valuation ?? ['value' => 0, 'source' => '', 'is_manual' => false, 'auto_value' => 0];
 $health = $health ?? ['status' => 'warn', 'label' => '—', 'reasons' => []];
@@ -50,7 +57,114 @@ $net = (float) ($summary['net_worth'] ?? 0);
         <?php endforeach; ?>
     </nav>
 
-    <?php if ($tab === 'estados-proyeccion'): ?>
+    <?php if ($tab === 'clientes'): ?>
+        <?php
+        $clientsUi = $clientsUi ?? [
+            'rows' => [], 'sort' => 'name', 'dir' => 'asc',
+            'stats' => ['active' => 0, 'inactive' => 0, 'total_all' => 0],
+        ];
+        $cSort = (string) ($clientsUi['sort'] ?? 'name');
+        $cDir = (string) ($clientsUi['dir'] ?? 'asc');
+        $cStats = $clientsUi['stats'] ?? ['active' => 0, 'inactive' => 0, 'total_all' => 0];
+        $sortUrl = static function (string $col) use ($companyPath, $currency, $cSort, $cDir): string {
+            $nextDir = ($cSort === $col && $cDir === 'asc') ? 'desc' : 'asc';
+            $q = ['tab' => 'clientes', 'currency' => $currency, 'sort' => $col, 'dir' => $nextDir];
+            return url($companyPath . '?' . http_build_query($q));
+        };
+        $sortMark = static function (string $col) use ($cSort, $cDir): string {
+            if ($cSort !== $col) {
+                return '';
+            }
+            return $cDir === 'desc' ? ' ↓' : ' ↑';
+        };
+        ?>
+        <div class="panel mt">
+            <div class="page-head">
+                <div>
+                    <h2>Clientes</h2>
+                    <p class="muted" style="margin:0">
+                        Lista y montos desde <strong>Estados y proyección</strong>.
+                        Acá completás contacto, contrato PDF, docs y estado.
+                    </p>
+                </div>
+                <?php if ($canWrite): ?>
+                    <a class="btn" href="<?= e(url($companyPath . '?tab=estados-proyeccion')) ?>">Ir a proyección</a>
+                <?php endif; ?>
+            </div>
+
+            <div class="stat-row cols-3" style="margin:1.25rem 0 1rem">
+                <div class="stat tone-green">
+                    <span class="stat-label">Clientes activos</span>
+                    <span class="stat-value"><?= (int) ($cStats['active'] ?? 0) ?></span>
+                </div>
+                <div class="stat tone-rose">
+                    <span class="stat-label">Clientes inactivos</span>
+                    <span class="stat-value"><?= (int) ($cStats['inactive'] ?? 0) ?></span>
+                </div>
+                <div class="stat tone-blue">
+                    <span class="stat-label">Total desde el comienzo</span>
+                    <span class="stat-value"><?= (int) ($cStats['total_all'] ?? 0) ?></span>
+                </div>
+            </div>
+
+            <?php if ($companyClients === []): ?>
+                <p class="muted">
+                    No hay clientes con nombre en Estados y proyección.
+                    <?php if ($canWrite): ?>
+                        Agregá filas de cliente ahí y guardá el plan.
+                    <?php endif; ?>
+                </p>
+            <?php else: ?>
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th><a class="th-sort" href="<?= e($sortUrl('name')) ?>">Cliente<?= e($sortMark('name')) ?></a></th>
+                        <th><a class="th-sort" href="<?= e($sortUrl('status')) ?>">Estado<?= e($sortMark('status')) ?></a></th>
+                        <th><a class="th-sort" href="<?= e($sortUrl('contact')) ?>">Contacto<?= e($sortMark('contact')) ?></a></th>
+                        <th>Email</th>
+                        <th>Teléfono</th>
+                        <th class="num"><a class="th-sort" href="<?= e($sortUrl('total')) ?>">Total<?= e($sortMark('total')) ?></a></th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <?php foreach ($companyClients as $cl): ?>
+                        <?php $active = (int) ($cl['is_active'] ?? 1) === 1; ?>
+                        <tr>
+                            <td>
+                                <?php if (!empty($cl['id'])): ?>
+                                    <a href="<?= e(url($companyPath . '/clientes/' . (int) $cl['id'])) ?>"><?= e($cl['name']) ?></a>
+                                <?php else: ?>
+                                    <?= e($cl['name']) ?>
+                                <?php endif; ?>
+                            </td>
+                            <td>
+                                <span class="badge <?= $active ? 'badge-ok' : 'badge-danger' ?>">
+                                    <?= $active ? 'Activo' : 'Inactivo' ?>
+                                </span>
+                            </td>
+                            <td><?= e(($cl['contact_name'] ?? '') !== '' ? $cl['contact_name'] : '—') ?></td>
+                            <td><?= e(($cl['email'] ?? '') !== '' ? $cl['email'] : '—') ?></td>
+                            <td><?= e(($cl['phone'] ?? '') !== '' ? $cl['phone'] : '—') ?></td>
+                            <td class="num"><?= e(money($cl['value_total'] ?? 0, $currency)) ?></td>
+                            <td class="actions">
+                                <?php if (!empty($cl['id'])): ?>
+                                    <a href="<?= e(url($companyPath . '/clientes/' . (int) $cl['id'])) ?>">Ver</a>
+                                    <?php if ($canWrite): ?>
+                                        · <a href="<?= e(url($companyPath . '/clientes/' . (int) $cl['id'] . '/editar')) ?>">Ficha</a>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+
+    <?php elseif ($tab === 'estados-proyeccion'): ?>
         <?php
         $fp = $financialPlan ?? null;
         $fpWorkbook = $fp['workbook'] ?? ['version' => 2, 'activeYear' => 0, 'years' => []];

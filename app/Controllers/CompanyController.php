@@ -128,11 +128,15 @@ final class CompanyController
         if ($tab === 'dashboard') {
             $tab = 'resumen';
         }
+        $isServices = ($company['business_model'] ?? 'services') === 'services';
         $allowed = [
             'resumen', 'cuentas', 'activos', 'pasivos', 'propiedades', 'inventario',
             'cobrables', 'movimientos', 'integraciones', 'participaciones', 'valuacion',
             'estados-proyeccion',
         ];
+        if ($isServices) {
+            $allowed[] = 'clientes';
+        }
         if (!in_array($tab, $allowed, true)) {
             $tab = 'resumen';
         }
@@ -144,6 +148,22 @@ final class CompanyController
         $financialPlan = null;
         if ($tab === 'estados-proyeccion') {
             $financialPlan = FinancialPlanService::ensureForCompany($entityId, (string) $company['name']);
+        }
+
+        $companyClients = [];
+        $clientsUi = [
+            'rows' => [],
+            'sort' => 'name',
+            'dir' => 'asc',
+            'stats' => ['active' => 0, 'inactive' => 0, 'total_all' => 0],
+        ];
+        if ($tab === 'clientes' && $isServices) {
+            $clientsUi = CompanyClientService::listForUi(
+                $entityId,
+                (string) ($_GET['sort'] ?? 'name'),
+                (string) ($_GET['dir'] ?? 'asc')
+            );
+            $companyClients = $clientsUi['rows'];
         }
 
         if ($tab === 'resumen' || $tab === 'valuacion') {
@@ -200,6 +220,9 @@ final class CompanyController
             'companyAccounts' => $companyAccounts,
             'companyExtras' => $companyExtras,
             'financialPlan' => $financialPlan,
+            'companyClients' => $companyClients,
+            'clientsUi' => $clientsUi,
+            'isServices' => $isServices,
             'canWrite' => Auth::canWrite(),
             'success' => flash('success'),
             'error' => flash('error'),
@@ -297,8 +320,6 @@ final class CompanyController
             flash('error', 'El nombre es obligatorio.');
             redirect('/empresas/' . $entityId . '/editar');
         }
-        $businessModel = CompanySchema::normalizeModel(post_string('business_model', 'services'));
-
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
@@ -313,14 +334,14 @@ final class CompanyController
                 'is_active' => bool_post('is_active'),
                 'id' => $entityId,
             ]);
+            // business_model solo se setea al crear; no se modifica en edición.
             $pdo->prepare(
                 'UPDATE companies SET legal_name = :legal_name, tax_id = :tax_id,
-                 industry = :industry, business_model = :business_model WHERE entity_id = :id'
+                 industry = :industry WHERE entity_id = :id'
             )->execute([
                 'legal_name' => post_string('legal_name') ?: null,
                 'tax_id' => post_string('tax_id') ?: null,
                 'industry' => post_string('industry') ?: null,
-                'business_model' => $businessModel,
                 'id' => $entityId,
             ]);
             $pdo->commit();

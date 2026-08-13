@@ -23,16 +23,24 @@
             <input name="industry" value="<?= e($c['industry'] ?? '') ?>">
         </label>
         <?php $bm = ($c['business_model'] ?? 'services') === 'products' ? 'products' : 'services'; ?>
-        <label class="full">Tipo de negocio *
-            <select name="business_model" required>
-                <option value="services"<?= $bm === 'services' ? ' selected' : '' ?>>Servicios — proyección por cliente</option>
-                <option value="products"<?= $bm === 'products' ? ' selected' : '' ?>>Productos — proyección por mes (total de ingresos)</option>
-            </select>
-            <span class="hint" style="display:block;margin-top:0.35rem">
-                Define la plantilla de <strong>Estados y proyección</strong>.
-                Si cambiás el tipo en una empresa existente, usá <em>Restablecer</em> en esa pestaña para regenerar la plantilla.
-            </span>
-        </label>
+        <?php if ($isEdit): ?>
+            <label class="full">Tipo de negocio
+                <input type="text" readonly value="<?= $bm === 'products' ? 'Productos — proyección por mes' : 'Servicios — proyección por cliente' ?>">
+                <span class="hint" style="display:block;margin-top:0.35rem">
+                    Se elige al crear la empresa y no se puede cambiar después.
+                </span>
+            </label>
+        <?php else: ?>
+            <label class="full">Tipo de negocio *
+                <select name="business_model" required>
+                    <option value="services"<?= $bm === 'services' ? ' selected' : '' ?>>Servicios — proyección por cliente</option>
+                    <option value="products"<?= $bm === 'products' ? ' selected' : '' ?>>Productos — proyección por mes (total de ingresos)</option>
+                </select>
+                <span class="hint" style="display:block;margin-top:0.35rem">
+                    Define la plantilla de <strong>Estados y proyección</strong>. No se puede cambiar después de creada.
+                </span>
+            </label>
+        <?php endif; ?>
         <label>País
             <input name="country" value="<?= e($c['country'] ?? '') ?>">
         </label>

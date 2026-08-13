@@ -45,6 +45,16 @@ $router->post('/empresas/{id}/caja', [CompanyController::class, 'storeCashMoveme
 $router->post('/empresas/{id}/venta-caja', [CompanyController::class, 'storeCashMovement']); // alias legacy
 $router->post('/empresas/{id}/estados-proyeccion', [CompanyController::class, 'saveFinancialPlan']);
 $router->post('/empresas/{id}/estados-proyeccion/reset', [CompanyController::class, 'resetFinancialPlan']);
+$router->get('/empresas/{id}/clientes/nuevo', [CompanyClientController::class, 'create']);
+$router->post('/empresas/{id}/clientes', [CompanyClientController::class, 'store']);
+$router->get('/empresas/{id}/clientes/{clientId}', [CompanyClientController::class, 'show']);
+$router->get('/empresas/{id}/clientes/{clientId}/editar', [CompanyClientController::class, 'edit']);
+$router->post('/empresas/{id}/clientes/{clientId}', [CompanyClientController::class, 'update']);
+$router->post('/empresas/{id}/clientes/{clientId}/eliminar', [CompanyClientController::class, 'destroy']);
+$router->post('/empresas/{id}/clientes/{clientId}/contrato', [CompanyClientController::class, 'uploadContract']);
+$router->post('/empresas/{id}/clientes/{clientId}/documentos', [CompanyClientController::class, 'uploadDoc']);
+$router->post('/empresas/{id}/clientes/{clientId}/documentos/{docId}/eliminar', [CompanyClientController::class, 'deleteDoc']);
+$router->get('/empresas/{id}/clientes/{clientId}/archivos/{docId}', [CompanyClientController::class, 'download']);
 
 $router->get('/cuentas', [AccountController::class, 'index']);
 $router->get('/cuentas/export', [AccountController::class, 'export']);

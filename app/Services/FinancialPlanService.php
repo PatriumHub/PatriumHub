@@ -127,9 +127,91 @@ final class FinancialPlanService
         self::persistJson($entityId, $workbook);
         $fresh = self::find($entityId);
         if ($fresh === null) {
-            return self::insert($entityId, $workbook);
+            $fresh = self::insert($entityId, $workbook);
+        }
+        if (($fresh['workbook']['template'] ?? 'services') === 'services') {
+            try {
+                CompanyClientService::syncFromProjection($entityId, $fresh['workbook']);
+            } catch (Throwable) {
+                // Fichas son complemento; no bloquear el guardado del plan.
+            }
         }
         return $fresh;
+    }
+
+    /**
+     * Clientes con nombre en el workbook (servicios), agregados por nombre.
+     *
+     * @param array<string,mixed> $workbook
+     * @return list<array{
+     *   name:string,
+     *   value_total:float,
+     *   years:array<string,float>
+     * }>
+     */
+    public static function clientsFromWorkbook(array $workbook): array
+    {
+        $workbook = self::normalizeWorkbook($workbook);
+        if (($workbook['template'] ?? 'services') === 'products') {
+            return [];
+        }
+        $years = $workbook['years'] ?? [];
+        if (!is_array($years) || $years === []) {
+            return [];
+        }
+
+        /** @var array<string,array{name:string,years:array<string,float>}> $byKey */
+        $byKey = [];
+        foreach ($years as $year) {
+            if (!is_array($year)) {
+                continue;
+            }
+            $yearName = trim((string) ($year['name'] ?? ''));
+            if ($yearName === '') {
+                $yearName = 'Año';
+            }
+            $clients = $year['clients'] ?? [];
+            if (!is_array($clients)) {
+                continue;
+            }
+            foreach ($clients as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $name = trim((string) ($row['name'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                $months = $row['months'] ?? [];
+                $sum = 0.0;
+                if (is_array($months)) {
+                    foreach ($months as $m) {
+                        $sum += (float) $m;
+                    }
+                }
+                $key = mb_strtolower($name);
+                if (!isset($byKey[$key])) {
+                    $byKey[$key] = ['name' => $name, 'years' => []];
+                }
+                $byKey[$key]['years'][$yearName] = round(($byKey[$key]['years'][$yearName] ?? 0) + $sum, 2);
+            }
+        }
+
+        $out = [];
+        foreach ($byKey as $item) {
+            $yearsMap = $item['years'];
+            $total = 0.0;
+            foreach ($yearsMap as $v) {
+                $total += $v;
+            }
+            $out[] = [
+                'name' => $item['name'],
+                'value_total' => round($total, 2),
+                'years' => $yearsMap,
+            ];
+        }
+        usort($out, static fn (array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+        return $out;
     }
 
     public static function reset(int $entityId, ?string $companyName = null): array
