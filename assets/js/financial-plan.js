@@ -255,11 +255,11 @@
   }
 
   const MONTHLY_SERIES = [
-    { key: 'incomeM', label: 'Ingresos', color: '#7fd99a' },
-    { key: 'expenseM', label: 'Egresos', color: '#f07178' },
-    { key: 'balanceM', label: 'Balance', color: '#5b8def' },
-    { key: 'savingsM', label: 'Ahorro', color: '#38bdf8' },
-    { key: 'profitM', label: 'Ganancia neta', color: '#d4a017' },
+    { key: 'incomeM', label: 'Ingresos', color: '#10b981' },
+    { key: 'expenseM', label: 'Egresos', color: '#ef4444' },
+    { key: 'balanceM', label: 'Balance', color: '#3b82f6' },
+    { key: 'savingsM', label: 'Ahorro', color: '#06b6d4' },
+    { key: 'profitM', label: 'Ganancia neta', color: '#047857' },
   ];
 
   let compareChart = null;
@@ -326,8 +326,8 @@
   }
 
   function buildLineBarConfig(yearStats, type) {
-    const grid = 'rgba(232, 234, 239, 0.06)';
-    const tick = '#8b93a7';
+    const grid = 'rgba(15, 23, 42, 0.08)';
+    const tick = '#64748b';
     const isBar = type === 'bar';
     return {
       type,
@@ -343,7 +343,7 @@
           pointRadius: isBar ? 0 : 5,
           pointHoverRadius: isBar ? 0 : 7,
           pointBackgroundColor: s.color,
-          pointBorderColor: '#0e1218',
+          pointBorderColor: '#ffffff',
           pointBorderWidth: 1.5,
           fill: false,
           maxBarThickness: 22,
@@ -365,7 +365,7 @@
           legend: {
             position: 'bottom',
             labels: {
-              color: '#c9d0de',
+              color: '#475569',
               boxWidth: 10,
               padding: 14,
               font: { size: 12, weight: '500' },
@@ -388,7 +388,7 @@
           title: {
             display: true,
             text: (yearStats.name || 'Año') + ' · por mes',
-            color: '#c9d0de',
+            color: '#475569',
             font: { size: 13, weight: '500' },
             padding: { bottom: 8 },
           },
@@ -410,9 +410,9 @@
 
   function buildPieConfig(yearStats) {
     const slices = [
-      { label: 'Egresos', value: Math.max(0, Number(yearStats.expenseAnnual) || 0), color: '#f07178' },
-      { label: 'Ahorro', value: Math.max(0, Number(yearStats.savingsAnnual) || 0), color: '#38bdf8' },
-      { label: 'Ganancia neta', value: Math.max(0, Number(yearStats.profitAnnual) || 0), color: '#d4a017' },
+      { label: 'Egresos', value: Math.max(0, Number(yearStats.expenseAnnual) || 0), color: '#ef4444' },
+      { label: 'Ahorro', value: Math.max(0, Number(yearStats.savingsAnnual) || 0), color: '#06b6d4' },
+      { label: 'Ganancia neta', value: Math.max(0, Number(yearStats.profitAnnual) || 0), color: '#047857' },
     ];
     const total = slices.reduce((a, s) => a + s.value, 0);
     return {
@@ -434,7 +434,7 @@
           legend: {
             position: 'bottom',
             labels: {
-              color: '#c9d0de',
+              color: '#475569',
               boxWidth: 10,
               padding: 14,
               font: { size: 12, weight: '500' },
@@ -454,7 +454,7 @@
           title: {
             display: true,
             text: (yearStats.name || 'Año') + ' · composición del ingreso',
-            color: '#c9d0de',
+            color: '#475569',
             font: { size: 13, weight: '500' },
             padding: { bottom: 8 },
           },
@@ -464,13 +464,13 @@
   }
 
   function buildYearsCompareConfig(years, type) {
-    const grid = 'rgba(232, 234, 239, 0.06)';
-    const tick = '#8b93a7';
+    const grid = 'rgba(15, 23, 42, 0.08)';
+    const tick = '#64748b';
     const isBar = type === 'bar';
     const series = [
-      { key: 'profitAnnual', label: 'Ganancia neta', color: '#d4a017' },
-      { key: 'expenseAnnual', label: 'Egresos', color: '#f07178' },
-      { key: 'savingsAnnual', label: 'Ahorro', color: '#38bdf8' },
+      { key: 'profitAnnual', label: 'Ganancia neta', color: '#047857' },
+      { key: 'expenseAnnual', label: 'Egresos', color: '#ef4444' },
+      { key: 'savingsAnnual', label: 'Ahorro', color: '#06b6d4' },
     ];
     return {
       type,
@@ -486,7 +486,7 @@
           pointRadius: isBar ? 0 : 5,
           pointHoverRadius: isBar ? 0 : 7,
           pointBackgroundColor: s.color,
-          pointBorderColor: '#0e1218',
+          pointBorderColor: '#ffffff',
           pointBorderWidth: 1.5,
           fill: false,
           maxBarThickness: 48,
@@ -508,7 +508,7 @@
           legend: {
             position: 'bottom',
             labels: {
-              color: '#c9d0de',
+              color: '#475569',
               boxWidth: 10,
               padding: 14,
               font: { size: 12, weight: '500' },

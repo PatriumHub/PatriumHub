@@ -58,10 +58,10 @@
     if (data.hide) return;
 
     const colors = [
-      '#d4a017', '#5b8def', '#7fd99a', '#f07178', '#c084fc', '#38bdf8', '#fb923c',
+      '#047857', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316',
     ];
-    const grid = 'rgba(232, 234, 239, 0.06)';
-    const tick = '#8b93a7';
+    const grid = 'rgba(15, 23, 42, 0.08)';
+    const tick = '#64748b';
     const base = data.baseUrl || (window.location.pathname.replace(/\/[^/]*$/, '') + '/index.php');
 
     const go = (route, params = {}) => {
@@ -90,7 +90,7 @@
         legend: {
           position: 'bottom',
           labels: {
-            color: '#c9d0de',
+            color: '#475569',
             boxWidth: 10,
             padding: 14,
             font: { size: 12, weight: '500' },
@@ -137,7 +137,7 @@
           labels: data.wealthSplit.labels,
           datasets: [{
             data: data.wealthSplit.values,
-            backgroundColor: ['#5b8def', '#d4a017'],
+            backgroundColor: ['#3b82f6', '#047857'],
             borderWidth: 0,
             hoverOffset: 8,
           }],
@@ -154,7 +154,7 @@
           labels: data.liquiditySources.labels,
           datasets: [{
             data: data.liquiditySources.values,
-            backgroundColor: ['#7fd99a', '#38bdf8'],
+            backgroundColor: ['#10b981', '#06b6d4'],
             borderWidth: 0,
             hoverOffset: 8,
           }],
@@ -195,10 +195,10 @@
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: '#161a22',
-              titleColor: '#e8eaef',
-              bodyColor: '#c9d0de',
-              borderColor: '#2a3140',
+              backgroundColor: '#ffffff',
+              titleColor: '#1a202c',
+              bodyColor: '#475569',
+              borderColor: '#e2e8f0',
               borderWidth: 1,
               callbacks: {
                 afterTitle: (items) => {
@@ -221,7 +221,7 @@
               beginAtZero: true,
             },
             y: {
-              ticks: { color: '#e8eaef', font: { size: 13, weight: '500' } },
+              ticks: { color: '#1a202c', font: { size: 13, weight: '500' } },
               grid: { display: false },
             },
           },
@@ -243,7 +243,7 @@
           labels: data.liquidity.labels,
           datasets: [{
             data: data.liquidity.values,
-            backgroundColor: ['#d4a017', '#2a3140'],
+            backgroundColor: ['#047857', '#e2e8f0'],
             borderWidth: 0,
             hoverOffset: 6,
           }],
@@ -268,7 +268,7 @@
           datasets: [{
             label: 'Bruto',
             data: data.currencySplit.values,
-            backgroundColor: '#5b8def',
+            backgroundColor: '#3b82f6',
             borderRadius: 6,
           }],
         },
@@ -290,7 +290,7 @@
           datasets: [{
             label: 'Patrimonio neto',
             data: data.entities.values,
-            backgroundColor: '#d4a017',
+            backgroundColor: '#047857',
             borderRadius: 6,
           }],
         },
@@ -338,7 +338,7 @@
         {
           label: 'Patrimonio neto',
           data: data.evolution.net,
-          borderColor: '#f0c14b',
+          borderColor: '#34d399',
           backgroundColor: (ctx) => {
             const chart = ctx.chart;
             const { ctx: c, chartArea } = chart;
@@ -353,8 +353,8 @@
           borderWidth: 3.5,
           pointRadius: showPoints ? 4 : 0,
           pointHoverRadius: 6,
-          pointBackgroundColor: '#f0c14b',
-          pointBorderColor: '#0c0e12',
+          pointBackgroundColor: '#34d399',
+          pointBorderColor: '#ffffff',
           pointBorderWidth: 2,
           order: 1,
         },
@@ -363,14 +363,14 @@
         datasets.push({
           label: 'Liquidez',
           data: data.evolution.liquidity,
-          borderColor: '#7fd99a',
+          borderColor: '#10b981',
           backgroundColor: 'transparent',
           fill: false,
           tension: 0.3,
           borderWidth: 2.5,
           pointRadius: showPoints ? 3 : 0,
           pointHoverRadius: 5,
-          pointBackgroundColor: '#7fd99a',
+          pointBackgroundColor: '#10b981',
           order: 2,
         });
       } else if (!simple) {
@@ -378,27 +378,27 @@
           {
             label: 'Activos',
             data: data.evolution.assets,
-            borderColor: '#7fd99a',
+            borderColor: '#10b981',
             backgroundColor: 'transparent',
             fill: false,
             tension: 0.25,
             borderWidth: 2,
             pointRadius: showPoints ? 3 : 0,
             pointHoverRadius: 5,
-            pointBackgroundColor: '#7fd99a',
+            pointBackgroundColor: '#10b981',
             order: 2,
           },
           {
             label: 'Pasivos',
             data: data.evolution.liabilities,
-            borderColor: '#f07178',
+            borderColor: '#ef4444',
             backgroundColor: 'transparent',
             fill: false,
             tension: 0.25,
             borderWidth: 2,
             pointRadius: showPoints ? 3 : 0,
             pointHoverRadius: 5,
-            pointBackgroundColor: '#f07178',
+            pointBackgroundColor: '#ef4444',
             order: 3,
           }
         );
@@ -418,7 +418,7 @@
             legend: {
               position: 'bottom',
               labels: {
-                color: '#e8eaef',
+                color: '#1a202c',
                 boxWidth: 14,
                 boxHeight: 3,
                 padding: 16,
@@ -427,10 +427,10 @@
               },
             },
             tooltip: {
-              backgroundColor: '#161a22',
-              titleColor: '#e8eaef',
-              bodyColor: '#c9d0de',
-              borderColor: '#2a3140',
+              backgroundColor: '#ffffff',
+              titleColor: '#1a202c',
+              bodyColor: '#475569',
+              borderColor: '#e2e8f0',
               borderWidth: 1,
               padding: 12,
               callbacks: {
@@ -445,22 +445,22 @@
           scales: {
             x: {
               ticks: {
-                color: '#c9d0de',
+                color: '#475569',
                 maxRotation: 0,
                 autoSkip: true,
                 maxTicksLimit: 10,
                 font: { size: 12 },
               },
-              grid: { color: 'rgba(232, 234, 239, 0.04)', drawBorder: false },
+              grid: { color: 'rgba(15, 23, 42, 0.05)', drawBorder: false },
             },
             y: {
               ticks: {
-                color: '#c9d0de',
+                color: '#475569',
                 callback: moneyTick,
                 font: { size: 12 },
                 padding: 8,
               },
-              grid: { color: 'rgba(232, 234, 239, 0.08)', drawBorder: false },
+              grid: { color: 'rgba(15, 23, 42, 0.1)', drawBorder: false },
               beginAtZero: true,
             },
           },
@@ -476,7 +476,7 @@
           labels: data.flow.labels,
           datasets: [{
             data: data.flow.values,
-            backgroundColor: ['#7fd99a', '#f07178'],
+            backgroundColor: ['#10b981', '#ef4444'],
             borderRadius: 8,
           }],
         },
@@ -499,7 +499,7 @@
           datasets: [{
             label: 'Δ neto',
             data: data.ranking.values,
-            backgroundColor: (data.ranking.values || []).map((v) => (v >= 0 ? '#7fd99a' : '#f07178')),
+            backgroundColor: (data.ranking.values || []).map((v) => (v >= 0 ? '#10b981' : '#ef4444')),
             borderRadius: 6,
           }],
         },
@@ -533,7 +533,7 @@
           datasets: [{
             label: 'Ventas',
             data: values,
-            backgroundColor: values.map((v) => (Number(v) >= 0 ? color : '#f07178')),
+            backgroundColor: values.map((v) => (Number(v) >= 0 ? color : '#ef4444')),
             borderRadius: 6,
           }],
         },
@@ -546,9 +546,9 @@
       });
     };
 
-    makeSalesBar(document.getElementById('chartWooSales'), data.wooSales, '#d4a017');
-    makeSalesBar(document.getElementById('chartMpSales'), data.mpSales, '#5b8def');
-    makeSalesBar(document.getElementById('chartCashSales'), data.cashSales, '#fb923c');
+    makeSalesBar(document.getElementById('chartWooSales'), data.wooSales, '#047857');
+    makeSalesBar(document.getElementById('chartMpSales'), data.mpSales, '#3b82f6');
+    makeSalesBar(document.getElementById('chartCashSales'), data.cashSales, '#f97316');
 
     const accountsByType = document.getElementById('chartAccountsByType');
     if (accountsByType && data.byType) {
@@ -576,7 +576,7 @@
           datasets: [{
             label: 'Saldo',
             data: data.byEntity.values,
-            backgroundColor: '#5b8def',
+            backgroundColor: '#3b82f6',
             borderRadius: 8,
           }],
         },
@@ -587,7 +587,7 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: tick, callback: moneyTick }, grid: { color: grid }, beginAtZero: true },
-            y: { ticks: { color: '#e8eaef' }, grid: { display: false } },
+            y: { ticks: { color: '#1a202c' }, grid: { display: false } },
           },
         },
       });
@@ -629,7 +629,7 @@
           datasets: [{
             label: 'Saldo',
             data: mpEntitySeries.values,
-            backgroundColor: '#c084fc',
+            backgroundColor: '#8b5cf6',
             borderRadius: 8,
           }],
         },
@@ -640,7 +640,7 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: tick, callback: moneyTick }, grid: { color: grid }, beginAtZero: true },
-            y: { ticks: { color: '#e8eaef' }, grid: { display: false } },
+            y: { ticks: { color: '#1a202c' }, grid: { display: false } },
           },
         },
       });
@@ -654,7 +654,7 @@
           labels: data.salesSplit.labels,
           datasets: [{
             data: data.salesSplit.values,
-            backgroundColor: ['#d4a017', '#5b8def', '#fb923c'],
+            backgroundColor: ['#047857', '#3b82f6', '#f97316'],
             borderWidth: 0,
           }],
         },
@@ -664,7 +664,7 @@
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#8b93a7', boxWidth: 12 },
+              labels: { color: '#64748b', boxWidth: 12 },
             },
           },
         },
@@ -679,7 +679,7 @@
           labels: data.companyExtras.labels,
           datasets: [{
             data: data.companyExtras.values,
-            backgroundColor: ['#7fd99a', '#5b8def', '#c084fc', '#d4a017'],
+            backgroundColor: ['#10b981', '#3b82f6', '#8b5cf6', '#047857'],
             borderRadius: 8,
           }],
         },

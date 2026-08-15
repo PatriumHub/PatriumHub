@@ -41,15 +41,15 @@
             <span class="stat-label">Patrimonio neto</span>
             <span class="stat-value"><?= e(money($summary['net_worth'], $currency)) ?></span>
         </div>
-        <div class="stat">
+        <div class="stat tone-green">
             <span class="stat-label">Activos totales</span>
             <span class="stat-value"><?= e(money($summary['total_assets'], $currency)) ?></span>
         </div>
-        <div class="stat">
+        <div class="stat tone-rose">
             <span class="stat-label">Pasivos</span>
             <span class="stat-value"><?= e(money($summary['liabilities'], $currency)) ?></span>
         </div>
-        <div class="stat">
+        <div class="stat tone-teal">
             <span class="stat-label">Liquidez</span>
             <span class="stat-value"><?= e(money($summary['liquidity'], $currency)) ?></span>
         </div>
