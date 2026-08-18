@@ -79,6 +79,16 @@
         <label class="full">Notas<textarea name="notes" rows="2"><?= e($p['notes'] ?? '') ?></textarea></label>
         <div class="full"><button type="submit">Guardar</button></div>
     </form>
+    <?php if ($isEdit): ?>
+        <div class="panel mt">
+            <h2 style="margin-top:0">Eliminar propiedad</h2>
+            <p class="muted">Se borra de forma permanente del patrimonio.</p>
+            <form method="post" action="<?= e(url('/propiedades/' . (int) $p['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar esta propiedad? No se puede deshacer.');">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn danger">Eliminar propiedad</button>
+            </form>
+        </div>
+    <?php endif; ?>
 </section>
 <script>
 (() => {

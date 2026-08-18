@@ -9,10 +9,7 @@ final class HomeController
         Auth::requireAdminArea();
 
         $currency = $_GET['currency'] ?? 'ARS';
-        $mode = $_GET['mode'] ?? 'consolidated';
-        if (!in_array($mode, ['consolidated', 'personal'], true)) {
-            $mode = 'consolidated';
-        }
+        $mode = 'consolidated';
         $summary = PatrimonioService::summarize(null, $currency, $mode);
         $pdo = Database::pdo();
 

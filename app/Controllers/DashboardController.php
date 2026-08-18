@@ -27,7 +27,7 @@ final class DashboardController
         $preset = $_GET['preset'] ?? '';
         if ($preset === 'personal') {
             $_GET['mode'] = 'personal';
-            unset($_GET['entity_id']);
+            // entity_id opcional: persona concreta o vacío = todas.
         } elseif ($preset === 'consolidated') {
             $_GET['mode'] = 'consolidated';
             unset($_GET['entity_id']);
@@ -93,25 +93,6 @@ final class DashboardController
         $flow = self::flowTotals($scopeEntityIds, $currency, $from, $to);
         $byCurrency = DashboardAnalyticsService::byCurrency($scopeEntityIds);
         $ranking = DashboardAnalyticsService::entityRanking($currency);
-        $alerts = DashboardAnalyticsService::alerts(
-            $mode === 'entity' ? $entityId : null
-        );
-        if ($mode === 'personal' && $scopeEntityIds !== null) {
-            $alerts = array_values(array_filter(
-                $alerts,
-                static function (array $a) use ($scopeEntityIds): bool {
-                    // Alertas de integración: solo si la entidad está en el alcance personal.
-                    if (($a['type'] ?? '') !== 'integration' || empty($a['href'])) {
-                        return true;
-                    }
-                    if (!preg_match('#/integraciones/(\d+)#', (string) $a['href'], $m)) {
-                        return true;
-                    }
-                    $int = IntegrationService::find((int) $m[1]);
-                    return $int && in_array((int) $int['entity_id'], $scopeEntityIds, true);
-                }
-            ));
-        }
         $wooSales = DashboardAnalyticsService::wooSalesSeries(
             ($mode === 'entity' && $entityId) ? $entityId : null,
             $currency,
@@ -141,7 +122,6 @@ final class DashboardController
             'flow' => $flow,
             'byCurrency' => $byCurrency,
             'ranking' => $ranking,
-            'alerts' => $alerts,
             'wooSales' => $wooSales,
             'history' => $history,
             'savedViews' => SavedViewService::listForUser((int) $user['id']),
@@ -239,6 +219,9 @@ final class DashboardController
             return [$entityId];
         }
         if ($mode === 'personal') {
+            if ($entityId) {
+                return [$entityId];
+            }
             return array_map('intval', array_column(Catalog::entities('person'), 'id'));
         }
         return null;

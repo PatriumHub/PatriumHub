@@ -17,6 +17,7 @@ $router->post('/dashboard/snapshot', [DashboardController::class, 'captureSnapsh
 $router->post('/dashboard/vistas', [SavedViewController::class, 'store']);
 $router->post('/dashboard/vistas/{id}/eliminar', [SavedViewController::class, 'destroy']);
 $router->get('/dashboard/mercadopago', [DashboardController::class, 'mercadopago']);
+$router->get('/proyecciones', [ProjectionsController::class, 'index']);
 
 $router->get('/participaciones', [OwnershipController::class, 'index']);
 $router->get('/participaciones/nueva', [OwnershipController::class, 'create']);
@@ -33,6 +34,8 @@ $router->get('/personas/{id}', [PeopleController::class, 'show']);
 $router->get('/personas/{id}/editar', [PeopleController::class, 'edit']);
 $router->post('/personas/{id}', [PeopleController::class, 'update']);
 $router->post('/personas/{id}/eliminar', [PeopleController::class, 'destroy']);
+$router->post('/personas/{id}/proyecciones', [PeopleController::class, 'saveFinancialPlan']);
+$router->post('/personas/{id}/proyecciones/reset', [PeopleController::class, 'resetFinancialPlan']);
 
 $router->get('/empresas', [CompanyController::class, 'index']);
 $router->get('/empresas/nueva', [CompanyController::class, 'create']);
@@ -75,6 +78,7 @@ $router->get('/propiedades/nueva', [PropertyController::class, 'create']);
 $router->post('/propiedades', [PropertyController::class, 'store']);
 $router->get('/propiedades/{id}/editar', [PropertyController::class, 'edit']);
 $router->post('/propiedades/{id}', [PropertyController::class, 'update']);
+$router->post('/propiedades/{id}/eliminar', [PropertyController::class, 'destroy']);
 
 $router->get('/cobrables', [ReceivableController::class, 'index']);
 $router->get('/cobrables/nueva', [ReceivableController::class, 'create']);

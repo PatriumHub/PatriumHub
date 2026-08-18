@@ -1,6 +1,7 @@
 <?php
 $tabs = [
     'resumen' => 'Resumen',
+    'proyecciones' => 'Proyecciones',
     'cuentas' => 'Cuentas',
     'activos' => 'Activos varios',
     'pasivos' => 'Pasivos',
@@ -14,6 +15,10 @@ $canWrite = !empty($canWrite);
 $net = (float) ($summary['net_worth'] ?? 0);
 $health = $health ?? ['status' => 'warn', 'label' => '—', 'reasons' => []];
 $parts = $summary['participation_details'] ?? [];
+$personPlan = $personPlan ?? null;
+$planStats = $planStats ?? null;
+$planCompare = $planCompare ?? null;
+$fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 ?>
 <section class="page">
     <div class="page-head">
@@ -153,7 +158,7 @@ $parts = $summary['participation_details'] ?? [];
         </form>
 
         <div class="company-hero">
-            <div class="company-hero-main">
+            <div class="company-hero-main accent">
                 <span class="stat-label">Patrimonio personal</span>
                 <div class="company-hero-value"><?= e(money($net, $currency)) ?></div>
                 <p class="muted" style="margin:0.4rem 0 0">Propios + participaciones en empresas</p>
@@ -169,7 +174,7 @@ $parts = $summary['participation_details'] ?? [];
         </div>
 
         <div class="stat-row">
-            <div class="stat">
+            <div class="stat tone-green">
                 <span class="stat-label">Activos propios</span>
                 <span class="stat-value"><?= e(money(
                     (float) ($summary['accounts'] ?? 0)
@@ -179,15 +184,15 @@ $parts = $summary['participation_details'] ?? [];
                     $currency
                 )) ?></span>
             </div>
-            <div class="stat">
+            <div class="stat tone-amber">
                 <span class="stat-label">Participaciones</span>
                 <span class="stat-value"><?= e(money($summary['participations'] ?? 0, $currency)) ?></span>
             </div>
-            <div class="stat">
+            <div class="stat tone-rose">
                 <span class="stat-label">Pasivos</span>
                 <span class="stat-value"><?= e(money($summary['liabilities'] ?? 0, $currency)) ?></span>
             </div>
-            <div class="stat">
+            <div class="stat tone-teal">
                 <span class="stat-label">Liquidez</span>
                 <span class="stat-value"><?= e(money($summary['liquidity'] ?? 0, $currency)) ?></span>
                 <?php if ((float) ($summary['liquidity_from_participations'] ?? 0) > 0): ?>
@@ -217,6 +222,44 @@ $parts = $summary['participation_details'] ?? [];
             </div>
         </div>
 
+        <?php if ($planStats && $planCompare): ?>
+            <?php
+            $ps = $planStats;
+            $pc = $planCompare;
+            $yearName = (string) ($ps['name'] ?? '');
+            ?>
+            <div class="panel mt pp-resumen-card">
+                <div class="page-head">
+                    <div>
+                        <h2 style="margin:0">Proyección <?= $yearName !== '' ? e($yearName) : '' ?></h2>
+                        <p class="muted" style="margin:0.25rem 0 0">Flujo planificado vs tu patrimonio real</p>
+                    </div>
+                    <a class="btn ghost" href="<?= e(url($personPath . '?tab=proyecciones&currency=' . urlencode($currency))) ?>">Abrir proyecciones</a>
+                </div>
+                <div class="stat-row cols-3" style="margin:1rem 0 0">
+                    <div class="stat tone-green">
+                        <span class="stat-label">Ingresos proyectados</span>
+                        <span class="stat-value"><?= e(money($ps['income_annual'] ?? 0, $currency)) ?></span>
+                    </div>
+                    <div class="stat tone-rose">
+                        <span class="stat-label">Egresos proyectados</span>
+                        <span class="stat-value"><?= e(money($ps['expense_annual'] ?? 0, $currency)) ?></span>
+                    </div>
+                    <div class="stat tone-teal">
+                        <span class="stat-label">Balance del año</span>
+                        <span class="stat-value"><?= e(money($ps['balance_annual'] ?? 0, $currency)) ?></span>
+                    </div>
+                </div>
+                <p class="muted" style="margin:0.85rem 0 0">
+                    Neto real <?= e(money($pc['real']['net_worth'] ?? 0, $currency)) ?>
+                    · Liquidez <?= e(money($pc['real']['liquidity'] ?? 0, $currency)) ?>
+                    <?php if (($pc['insights']['runway_months'] ?? null) !== null): ?>
+                        · Pista ~<?= e((string) $pc['insights']['runway_months']) ?> meses
+                    <?php endif; ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
         <?php if (!empty($ownerships)): ?>
             <div class="panel mt">
                 <h2>Participaciones</h2>
@@ -232,6 +275,197 @@ $parts = $summary['participation_details'] ?? [];
             </div>
         <?php endif; ?>
         <script type="application/json" id="company-charts"><?= json_encode($chartPayload, JSON_UNESCAPED_UNICODE) ?></script>
+
+    <?php elseif ($tab === 'proyecciones'): ?>
+        <?php
+        $pp = $personPlan ?? PersonFinancialPlanService::ensureForPerson((int) $person['id']);
+        $realityPayload = [
+            'net_worth' => (float) ($summary['net_worth'] ?? 0),
+            'liquidity' => (float) ($summary['liquidity'] ?? 0),
+            'liabilities' => (float) ($summary['liabilities'] ?? 0),
+            'own_assets' => (float) ($summary['accounts'] ?? 0)
+                + (float) ($summary['assets'] ?? 0)
+                + (float) ($summary['properties'] ?? 0)
+                + (float) ($summary['receivables'] ?? 0),
+            'participations' => (float) ($summary['participations'] ?? 0),
+        ];
+        ?>
+        <div id="pp-root"
+             class="mt"
+             data-readonly="<?= $canWrite ? '0' : '1' ?>"
+             data-save-url="<?= e(url($personPath . '/proyecciones')) ?>"
+             data-csrf="<?= e(csrf_token()) ?>"
+             data-currency="<?= e($currency) ?>">
+            <div class="pp-board">
+                <div class="pp-board-head">
+                    <div>
+                        <h2>Proyecciones</h2>
+                        <p>Ingresos y gastos mes a mes, contrastados con tu patrimonio real.</p>
+                    </div>
+                    <?php if ($canWrite): ?>
+                        <form method="post" action="<?= e(url($personPath . '/proyecciones/reset')) ?>" class="inline"
+                              onsubmit="return confirm('¿Restablecer la proyección a la plantilla vacía?');">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="currency" value="<?= e($currency) ?>">
+                            <button type="submit" class="btn ghost">Restablecer</button>
+                        </form>
+                    <?php endif; ?>
+                </div>
+
+                <div class="pp-board-focus">
+                    <div class="pp-focus pp-focus-net">
+                        <span class="pp-kicker">Neto actual</span>
+                        <strong class="pp-focus-value"><?= e(money($realityPayload['net_worth'], $currency)) ?></strong>
+                        <span class="pp-focus-note">Patrimonio real hoy</span>
+                    </div>
+                    <div class="pp-focus pp-focus-out">
+                        <span class="pp-kicker">Egresos del año</span>
+                        <strong class="pp-focus-value" id="pp-expense-hero">—</strong>
+                        <span class="pp-focus-note" id="pp-expense-hero-hint">Promedio mensual —</span>
+                    </div>
+                </div>
+
+                <div class="pp-board-grid">
+                    <div class="pp-tile pp-tile-teal">
+                        <span class="pp-tile-label">Liquidez</span>
+                        <strong class="pp-tile-value"><?= e(money($realityPayload['liquidity'], $currency)) ?></strong>
+                    </div>
+                    <div class="pp-tile pp-tile-green">
+                        <span class="pp-tile-label">Activos propios</span>
+                        <strong class="pp-tile-value"><?= e(money($realityPayload['own_assets'], $currency)) ?></strong>
+                    </div>
+                    <div class="pp-tile pp-tile-amber">
+                        <span class="pp-tile-label">Pasivos</span>
+                        <strong class="pp-tile-value"><?= e(money($realityPayload['liabilities'], $currency)) ?></strong>
+                    </div>
+                    <div class="pp-board-insights" id="pp-insight-dynamic"></div>
+                </div>
+            </div>
+
+            <div class="pp-year-bar">
+                <div id="pp-year-tabs" class="fp-sheet-tabs"></div>
+                <div class="fp-toolbar-actions">
+                    <label class="fp-rate-label">Meta de ahorro
+                        <input type="number" id="pp-savings-rate" min="0" max="100" step="0.5" class="fp-rate-input"<?= $canWrite ? '' : ' disabled' ?>> %
+                    </label>
+                    <span id="pp-status" class="fp-status"></span>
+                    <?php if ($canWrite): ?>
+                        <button type="button" class="btn ghost" id="pp-add-year">+ Año</button>
+                        <button type="button" class="btn" id="pp-save">Guardar</button>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div id="pp-kpis" class="pp-year-kpis" aria-live="polite"></div>
+
+            <div class="pp-charts">
+                <div class="chart-card pp-chart-flow">
+                    <h2>Flujo del año</h2>
+                    <p class="chart-hint">Ingresos, egresos y balance mes a mes</p>
+                    <div class="chart-wrap tall"><canvas id="pp-flow-chart"></canvas></div>
+                </div>
+                <div class="chart-card pp-chart-mix">
+                    <h2>Composición</h2>
+                    <p class="chart-hint">Ingresos vs egresos del año</p>
+                    <div class="chart-wrap short"><canvas id="pp-mix-chart"></canvas></div>
+                </div>
+                <div class="chart-card pp-chart-cum">
+                    <h2>Acumulado</h2>
+                    <p class="chart-hint">Balance acumulado mes a mes</p>
+                    <div class="chart-wrap short"><canvas id="pp-cum-chart"></canvas></div>
+                </div>
+                <div class="chart-card pp-chart-break">
+                    <h2>Desglose por concepto</h2>
+                    <p class="chart-hint">Totales anuales de cada línea de ingreso y gasto</p>
+                    <div class="chart-wrap tall"><canvas id="pp-break-chart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="panel mt">
+                <div class="fp-section-head">
+                    <div>
+                        <h3 style="margin:0">Ingresos mensuales</h3>
+                        <p class="muted" style="margin:0.2rem 0 0">Sueldos, honorarios, rentas y otros — pasados o proyectados.</p>
+                    </div>
+                    <?php if ($canWrite): ?>
+                        <button type="button" class="btn ghost" id="pp-add-income">+ Ingreso</button>
+                    <?php endif; ?>
+                </div>
+                <div class="fp-table-scroll">
+                    <table class="table fp-edit-table">
+                        <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                            <th class="num">Total</th>
+                            <?php if ($canWrite): ?><th></th><?php endif; ?>
+                        </tr>
+                        </thead>
+                        <tbody id="pp-income-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="fp-section-head mt">
+                    <div>
+                        <h3 style="margin:0">Egresos / costos</h3>
+                        <p class="muted" style="margin:0.2rem 0 0">Gastos fijos y variables del mes.</p>
+                    </div>
+                    <?php if ($canWrite): ?>
+                        <button type="button" class="btn ghost" id="pp-add-expense">+ Gasto</button>
+                    <?php endif; ?>
+                </div>
+                <div class="fp-table-scroll">
+                    <table class="table fp-edit-table">
+                        <thead>
+                        <tr>
+                            <th>Concepto</th>
+                            <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                            <th class="num">Total</th>
+                            <?php if ($canWrite): ?><th></th><?php endif; ?>
+                        </tr>
+                        </thead>
+                        <tbody id="pp-expenses-body"></tbody>
+                    </table>
+                </div>
+
+                <div class="fp-section-head mt">
+                    <div>
+                        <h3 style="margin:0">Resumen mensual</h3>
+                        <p class="muted" style="margin:0.2rem 0 0">Se calcula solo.</p>
+                    </div>
+                </div>
+                <div class="fp-table-scroll">
+                    <table class="table fp-summary-table">
+                        <thead>
+                        <tr>
+                            <th></th>
+                            <?php foreach ($fpMonths as $m): ?><th class="num"><?= e($m) ?></th><?php endforeach; ?>
+                            <th class="num">Anual</th>
+                        </tr>
+                        </thead>
+                        <tbody id="pp-summary-body"></tbody>
+                    </table>
+                </div>
+                <p class="fp-hint">Ctrl+S guarda.
+                    <?php if (!empty($pp['updated_at'])): ?>
+                        Último guardado: <?= e((string) $pp['updated_at']) ?>
+                    <?php endif; ?>
+                </p>
+            </div>
+        </div>
+        <script type="application/json" id="pp-workbook"><?= json_encode($pp['workbook'] ?? [], JSON_UNESCAPED_UNICODE) ?></script>
+        <script type="application/json" id="pp-reality"><?= json_encode($realityPayload, JSON_UNESCAPED_UNICODE) ?></script>
+        <script>
+          (function () {
+            function load() {
+              var s = document.createElement('script');
+              s.src = <?= json_encode(url('/assets/js/person-financial-plan.js') . '?v=' . (int) @filemtime(dirname(__DIR__, 3) . '/assets/js/person-financial-plan.js'), JSON_UNESCAPED_SLASHES) ?>;
+              document.body.appendChild(s);
+            }
+            if (window.Chart) load();
+            else window.addEventListener('load', load);
+          })();
+        </script>
 
     <?php else: ?>
         <div class="page-head mt">

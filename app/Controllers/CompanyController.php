@@ -25,10 +25,58 @@ final class CompanyController
             ));
         }
 
+        $active = 0;
+        $inactive = 0;
+        $withIndustry = 0;
+        $models = [];
+        $byIndustry = [];
+        $byModel = [];
+        foreach ($rows as $row) {
+            if ((int) ($row['is_active'] ?? 0)) {
+                $active++;
+            } else {
+                $inactive++;
+            }
+            if (trim((string) ($row['industry'] ?? '')) !== '') {
+                $withIndustry++;
+            }
+            $m = trim((string) ($row['business_model'] ?? ''));
+            if ($m !== '') {
+                $models[$m] = true;
+                $byModel[$m] = ($byModel[$m] ?? 0) + 1;
+            } else {
+                $byModel['Sin modelo'] = ($byModel['Sin modelo'] ?? 0) + 1;
+            }
+            $ind = trim((string) ($row['industry'] ?? ''));
+            if ($ind === '') {
+                $ind = 'Sin rubro';
+            }
+            $byIndustry[$ind] = ($byIndustry[$ind] ?? 0) + 1;
+        }
+        arsort($byIndustry);
+        arsort($byModel);
+
         view('companies/index', [
             'title' => 'Empresas',
             'rows' => $rows,
             'canWrite' => Auth::canWrite(),
+            'totals' => [
+                'count' => count($rows),
+                'active' => $active,
+                'inactive' => $inactive,
+                'with_industry' => $withIndustry,
+                'models' => count($models),
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => ['Activas', 'Inactivas'],
+                    'values' => [$active, $inactive],
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byIndustry),
+                    'values' => array_values($byIndustry),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);

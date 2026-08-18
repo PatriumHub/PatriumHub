@@ -15,10 +15,66 @@ final class ReceivableController
              ORDER BY FIELD(r.status,'overdue','current','paid','uncollectible','cancelled'),
                       r.due_date IS NULL, r.due_date"
         )->fetchAll();
+
+        $currency = preferred_list_currency($rows, 'outstanding_amount', 'ARS');
+        $statusLabels = ReceivableService::statusLabels();
+
+        $pending = 0.0;
+        $overdue = 0.0;
+        $current = 0.0;
+        $openCount = 0;
+        $overdueCount = 0;
+        $byStatus = [];
+        $byEntity = [];
+        foreach ($rows as $row) {
+            $st = (string) ($row['status'] ?? 'current');
+            $rowCurrency = strtoupper(trim((string) ($row['currency_code'] ?? '')));
+            if ($rowCurrency !== $currency) {
+                continue;
+            }
+            $amt = (float) ($row['outstanding_amount'] ?? 0);
+            $stLabel = $statusLabels[$st] ?? $st;
+            $byStatus[$stLabel] = ($byStatus[$stLabel] ?? 0.0) + $amt;
+            if ($st === 'overdue' || $st === 'current') {
+                $pending += $amt;
+                $openCount++;
+                $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+                $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $amt;
+            }
+            if ($st === 'overdue') {
+                $overdue += $amt;
+                $overdueCount++;
+            } elseif ($st === 'current') {
+                $current += $amt;
+            }
+        }
+        arsort($byStatus);
+        arsort($byEntity);
+
         view('receivables/index', [
             'title' => 'Cuentas por cobrar',
             'rows' => $rows,
-            'statusLabels' => ReceivableService::statusLabels(),
+            'currency' => $currency,
+            'currencies' => Catalog::currencies(),
+            'statusLabels' => $statusLabels,
+            'totals' => [
+                'pending' => $pending,
+                'overdue' => $overdue,
+                'current' => $current,
+                'open_count' => $openCount,
+                'overdue_count' => $overdueCount,
+                'count' => count($rows),
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($byStatus),
+                    'values' => array_values($byStatus),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byEntity),
+                    'values' => array_values($byEntity),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);

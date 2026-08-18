@@ -15,15 +15,52 @@ final class LiabilityController
         )->fetchAll();
 
         BudgetService::ensurePeriod(date('Y-m'));
-        $budgetPending = Database::pdo()->query(
+        $through = date('Y-m');
+        $budgetStmt = Database::pdo()->prepare(
             "SELECT i.*, e.name AS entity_name, e.type AS entity_type
              FROM budget_items i
              INNER JOIN entities e ON e.id = i.entity_id
              WHERE i.status = 'pending' AND i.include_in_net_worth = 1
+               AND i.period_ym <= :through
              ORDER BY e.type, e.name, i.due_date, i.name"
-        )->fetchAll();
+        );
+        $budgetStmt->execute(['through' => $through]);
+        $budgetPending = $budgetStmt->fetchAll();
+
+        $currency = 'ARS';
+        if (!isset($_GET['currency'])) {
+            $merged = [];
+            foreach ($rows as $r) {
+                $merged[] = [
+                    'currency_code' => $r['currency_code'] ?? 'ARS',
+                    'include_in_net_worth' => $r['include_in_net_worth'] ?? 1,
+                    'amount' => $r['outstanding_amount'] ?? 0,
+                ];
+            }
+            foreach ($budgetPending as $r) {
+                $merged[] = [
+                    'currency_code' => $r['currency_code'] ?? 'ARS',
+                    'include_in_net_worth' => 1,
+                    'amount' => $r['amount'] ?? 0,
+                ];
+            }
+            $currency = preferred_list_currency($merged, 'amount', 'ARS');
+        } else {
+            $currency = strtoupper(trim((string) $_GET['currency'])) ?: 'ARS';
+        }
+
+        $typeLabels = [
+            'credit_card' => 'Tarjeta',
+            'loan' => 'Préstamo',
+            'mortgage' => 'Hipoteca',
+            'supplier' => 'Proveedor',
+            'tax' => 'Impuesto',
+            'other' => 'Otro',
+        ];
 
         $budgetGroups = [];
+        $budgetTotal = 0.0;
+        $budgetItems = 0;
         foreach ($budgetPending as $row) {
             $eid = (int) $row['entity_id'];
             if (!isset($budgetGroups[$eid])) {
@@ -37,13 +74,66 @@ final class LiabilityController
                 ];
             }
             $budgetGroups[$eid]['items'][] = $row;
-            $budgetGroups[$eid]['total'] += (float) ($row['amount'] ?? 0);
+            $amt = (float) ($row['amount'] ?? 0);
+            $budgetGroups[$eid]['total'] += $amt;
+            if (strtoupper(trim((string) ($row['currency_code'] ?? ''))) === $currency) {
+                $budgetTotal += $amt;
+                $budgetItems++;
+            }
         }
+
+        $openTotal = 0.0;
+        $openCount = 0;
+        $byType = [];
+        $byEntity = [];
+        foreach ($rows as $row) {
+            if ((string) ($row['status'] ?? '') !== 'open') {
+                continue;
+            }
+            $rowCurrency = strtoupper(trim((string) ($row['currency_code'] ?? '')));
+            if ($rowCurrency !== $currency) {
+                continue;
+            }
+            $amt = (float) ($row['outstanding_amount'] ?? 0);
+            $openTotal += $amt;
+            $openCount++;
+            $type = (string) ($row['liability_type'] ?? 'other');
+            $typeName = $typeLabels[$type] ?? $type;
+            $byType[$typeName] = ($byType[$typeName] ?? 0.0) + $amt;
+            $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+            $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $amt;
+        }
+        if ($budgetTotal > 0.009) {
+            $byType['Presupuestos'] = ($byType['Presupuestos'] ?? 0.0) + $budgetTotal;
+        }
+        arsort($byType);
+        arsort($byEntity);
 
         view('liabilities/index', [
             'title' => 'Pasivos',
             'rows' => $rows,
             'budgetGroups' => array_values($budgetGroups),
+            'currency' => $currency,
+            'currencies' => Catalog::currencies(),
+            'typeLabels' => $typeLabels,
+            'totals' => [
+                'value' => $openTotal + $budgetTotal,
+                'open' => $openTotal,
+                'open_count' => $openCount,
+                'budget' => $budgetTotal,
+                'budget_items' => $budgetItems,
+                'count' => count($rows),
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($byType),
+                    'values' => array_values($byType),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byEntity),
+                    'values' => array_values($byEntity),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);

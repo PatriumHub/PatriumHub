@@ -43,12 +43,18 @@
     });
   }
 
-  const bootCharts = () => {
+  const bootCharts = (attempt) => {
+    attempt = attempt || 0;
     const node = document.getElementById('dashboard-charts')
       || document.getElementById('company-charts')
       || document.getElementById('accounts-charts')
+      || document.getElementById('list-charts')
       || document.getElementById('mp-dashboard-charts');
-    if (!node || typeof Chart === 'undefined') return;
+    if (!node) return;
+    if (typeof Chart === 'undefined') {
+      if (attempt < 50) window.setTimeout(() => bootCharts(attempt + 1), 100);
+      return;
+    }
     let data;
     try {
       data = JSON.parse(node.textContent || '{}');
@@ -550,15 +556,18 @@
     makeSalesBar(document.getElementById('chartMpSales'), data.mpSales, '#3b82f6');
     makeSalesBar(document.getElementById('chartCashSales'), data.cashSales, '#f97316');
 
-    const accountsByType = document.getElementById('chartAccountsByType');
+    const accountsByType = document.getElementById('chartAccountsByType')
+      || document.getElementById('chartListByType');
     if (accountsByType && data.byType) {
+      const typeVals = (data.byType.values || []).map(Number);
+      const typeSum = typeVals.reduce((a, b) => a + Math.abs(b), 0);
       new Chart(accountsByType, {
         type: 'doughnut',
         data: {
           labels: data.byType.labels,
           datasets: [{
-            data: data.byType.values,
-            backgroundColor: colors,
+            data: typeSum > 0 ? typeVals : [1],
+            backgroundColor: typeSum > 0 ? colors : ['rgba(148,163,184,0.35)'],
             borderWidth: 0,
             hoverOffset: 8,
           }],
@@ -567,15 +576,18 @@
       });
     }
 
-    const accountsByEntity = document.getElementById('chartAccountsByEntity');
+    const accountsByEntity = document.getElementById('chartAccountsByEntity')
+      || document.getElementById('chartListByEntity');
     if (accountsByEntity && data.byEntity) {
+      const entLabels = data.byEntity.labels || [];
+      const entVals = (data.byEntity.values || []).map(Number);
       new Chart(accountsByEntity, {
         type: 'bar',
         data: {
-          labels: data.byEntity.labels,
+          labels: entLabels.length ? entLabels : ['Sin datos'],
           datasets: [{
-            label: 'Saldo',
-            data: data.byEntity.values,
+            label: data.unit === 'pct' ? '%' : (data.unit === 'count' ? 'Cantidad' : 'Valor'),
+            data: entVals.length ? entVals : [0],
             backgroundColor: '#3b82f6',
             borderRadius: 8,
           }],
@@ -586,7 +598,14 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: {
-            x: { ticks: { color: tick, callback: moneyTick }, grid: { color: grid }, beginAtZero: true },
+            x: {
+              ticks: {
+                color: tick,
+                callback: data.unit === 'money' ? moneyTick : (v) => v,
+              },
+              grid: { color: grid },
+              beginAtZero: true,
+            },
             y: { ticks: { color: '#1a202c' }, grid: { display: false } },
           },
         },

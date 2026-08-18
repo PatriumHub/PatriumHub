@@ -2,19 +2,10 @@
     <div class="page-head">
         <div>
             <h1>Inicio</h1>
-            <p class="lede">
-                <?= $mode === 'personal' ? 'Patrimonio personal (propios + participaciones)' : 'Patrimonio consolidado (sin dobles por ownership)' ?>
-            </p>
+            <p class="lede">Patrimonio consolidado (sin dobles por ownership)</p>
         </div>
         <form method="get" class="filters inline-filters" action="<?= e(form_action()) ?>">
             <?= route_field('/') ?>
-            <label>
-                Vista
-                <select name="mode" onchange="this.form.submit()">
-                    <option value="consolidated"<?= selected($mode, 'consolidated') ?>>Consolidado</option>
-                    <option value="personal"<?= selected($mode, 'personal') ?>>Personal</option>
-                </select>
-            </label>
             <label>
                 Moneda
                 <select name="currency" onchange="this.form.submit()">
@@ -29,9 +20,8 @@
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
     <?php
     $chips = filter_chips([
-        'mode' => $mode !== 'consolidated' ? 'Vista: Personal' : null,
         'currency' => $currency !== 'ARS' ? ('Moneda: ' . $currency) : null,
-    ], array_filter(['mode' => $mode, 'currency' => $currency]), '/');
+    ], array_filter(['currency' => $currency]), '/');
     require __DIR__ . '/../partials/filter_chips.php';
     ?>
 
@@ -64,9 +54,6 @@
                 <li>Propiedades: <strong><?= e(money($summary['properties'], $currency)) ?></strong></li>
                 <li>Cobrables: <strong><?= e(money($summary['receivables'], $currency)) ?></strong></li>
                 <li>Inventario: <strong><?= e(money($summary['inventories'], $currency)) ?></strong></li>
-                <?php if (($summary['participations'] ?? 0) > 0 || $mode === 'personal'): ?>
-                    <li>Participaciones: <strong><?= e(money($summary['participations'] ?? 0, $currency)) ?></strong></li>
-                <?php endif; ?>
                 <?php if (($summary['internal_netting'] ?? 0) > 0): ?>
                     <li>Neto deudas internas: <strong><?= e(money($summary['internal_netting'], $currency)) ?></strong></li>
                 <?php endif; ?>

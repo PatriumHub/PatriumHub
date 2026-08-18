@@ -24,10 +24,51 @@ final class PeopleController
             ));
         }
 
+        $active = 0;
+        $inactive = 0;
+        $withDoc = 0;
+        $countries = [];
+        $byCountry = [];
+        foreach ($rows as $row) {
+            if ((int) ($row['is_active'] ?? 0)) {
+                $active++;
+            } else {
+                $inactive++;
+            }
+            if (trim((string) ($row['document_id'] ?? '')) !== '') {
+                $withDoc++;
+            }
+            $c = trim((string) ($row['country'] ?? ''));
+            if ($c === '') {
+                $c = 'Sin país';
+            } else {
+                $countries[$c] = true;
+            }
+            $byCountry[$c] = ($byCountry[$c] ?? 0) + 1;
+        }
+        arsort($byCountry);
+
         view('people/index', [
             'title' => 'Personas',
             'rows' => $rows,
             'canWrite' => Auth::canWrite(),
+            'totals' => [
+                'count' => count($rows),
+                'active' => $active,
+                'inactive' => $inactive,
+                'with_document' => $withDoc,
+                'countries' => count($countries),
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => ['Activas', 'Inactivas'],
+                    'values' => [$active, $inactive],
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byCountry),
+                    'values' => array_values($byCountry),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
@@ -106,7 +147,7 @@ final class PeopleController
         $tab = $_GET['tab'] ?? 'resumen';
         $allowed = [
             'resumen', 'cuentas', 'activos', 'pasivos', 'propiedades',
-            'cobrables', 'movimientos', 'participaciones',
+            'cobrables', 'movimientos', 'participaciones', 'proyecciones',
         ];
         if (!in_array($tab, $allowed, true)) {
             $tab = 'resumen';
@@ -115,6 +156,15 @@ final class PeopleController
         $entityId = (int) $person['id'];
         $currency = $_GET['currency'] ?? 'ARS';
         $summary = PatrimonioService::forEntity($entityId, $currency);
+
+        $personPlan = null;
+        $planStats = null;
+        $planCompare = null;
+        if ($tab === 'resumen' || $tab === 'proyecciones') {
+            $personPlan = PersonFinancialPlanService::ensureForPerson($entityId);
+            $planStats = PersonFinancialPlanService::yearStats($personPlan['workbook']);
+            $planCompare = PersonFinancialPlanService::compareToReality($summary, $planStats);
+        }
 
         $data = [
             'title' => $person['name'],
@@ -126,6 +176,9 @@ final class PeopleController
             'ownerships' => self::ownerships($entityId),
             'health' => ValuationService::health($summary, $entityId),
             'canWrite' => Auth::canWrite(),
+            'personPlan' => $personPlan,
+            'planStats' => $planStats,
+            'planCompare' => $planCompare,
             'success' => flash('success'),
             'error' => flash('error'),
         ];
@@ -200,6 +253,62 @@ final class PeopleController
         redirect('/personas');
     }
 
+    public static function saveFinancialPlan(string $id): void
+    {
+        Auth::requireWrite();
+        $entityId = (int) $id;
+        $person = self::find($entityId);
+        if (!$person) {
+            self::jsonResponse(['ok' => false, 'error' => 'Persona no encontrada.'], 404);
+        }
+        UserService::requireEntityAccess($entityId);
+
+        $raw = file_get_contents('php://input');
+        $payload = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($payload)) {
+            $payload = $_POST;
+        }
+        $token = $payload['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
+        if (!verify_csrf(is_string($token) ? $token : null)) {
+            self::jsonResponse(['ok' => false, 'error' => 'CSRF inválido.'], 403);
+        }
+
+        $workbook = $payload['workbook'] ?? null;
+        if (!is_array($workbook)) {
+            self::jsonResponse(['ok' => false, 'error' => 'Falta workbook.'], 422);
+        }
+
+        try {
+            $plan = PersonFinancialPlanService::save($entityId, $workbook);
+            AuditService::log('update', 'person_financial_plan', $entityId, 'Proyección personal actualizada');
+            self::jsonResponse([
+                'ok' => true,
+                'workbook' => $plan['workbook'],
+                'updated_at' => $plan['updated_at'],
+            ]);
+        } catch (Throwable $e) {
+            self::jsonResponse(['ok' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public static function resetFinancialPlan(string $id): void
+    {
+        Auth::requireWrite();
+        require_csrf();
+        $entityId = (int) $id;
+        $person = self::find($entityId);
+        if (!$person) {
+            flash('error', 'Persona no encontrada.');
+            redirect('/personas');
+        }
+        UserService::requireEntityAccess($entityId);
+        $currency = post_string('currency', 'ARS') ?: 'ARS';
+        PersonFinancialPlanService::reset($entityId);
+        AuditService::log('update', 'person_financial_plan', $entityId, 'Proyección personal restablecida');
+        flash('success', 'Proyección restablecida.');
+        redirect('/personas/' . $entityId . '?tab=proyecciones&currency=' . urlencode($currency));
+    }
+
     public static function update(string $id): void
     {
         Auth::requireWrite();
@@ -251,6 +360,15 @@ final class PeopleController
             flash('error', 'No se pudo actualizar: ' . $e->getMessage());
             redirect('/personas/' . $entityId . '/editar');
         }
+    }
+
+    /** @param array<string,mixed> $data */
+    private static function jsonResponse(array $data, int $status = 200): never
+    {
+        http_response_code($status);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
+        exit;
     }
 
     private static function find(int $id): ?array

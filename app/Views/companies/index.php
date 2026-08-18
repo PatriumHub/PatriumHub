@@ -1,4 +1,9 @@
-<?php $canWrite = !empty($canWrite); ?>
+<?php
+$canWrite = !empty($canWrite);
+$totals = $totals ?? ['count' => 0, 'active' => 0, 'inactive' => 0, 'with_industry' => 0, 'models' => 0];
+$charts = $charts ?? ['byType' => ['labels' => [], 'values' => []], 'byEntity' => ['labels' => [], 'values' => []]];
+$hide = hide_amounts();
+?>
 <section class="page">
     <div class="page-head">
         <div>
@@ -15,7 +20,37 @@
             <p><?= $canWrite ? 'No hay empresas cargadas.' : 'No tenés empresas asignadas. Pedile a un administrador que te dé acceso.' ?></p>
         </div>
     <?php else: ?>
-        <div class="panel">
+        <div class="stat-row">
+            <div class="stat tone-amber">
+                <span class="stat-label">Empresas</span>
+                <span class="stat-value"><?= (int) $totals['count'] ?></span>
+            </div>
+            <div class="stat tone-green">
+                <span class="stat-label">Activas</span>
+                <span class="stat-value"><?= (int) $totals['active'] ?></span>
+            </div>
+            <div class="stat tone-rose">
+                <span class="stat-label">Inactivas</span>
+                <span class="stat-value"><?= (int) $totals['inactive'] ?></span>
+            </div>
+            <div class="stat tone-blue">
+                <span class="stat-label">Con rubro</span>
+                <span class="stat-value"><?= (int) $totals['with_industry'] ?></span>
+                <span class="stat-hint muted"><?= (int) $totals['models'] ?> modelo(s)</span>
+            </div>
+        </div>
+
+        <?php
+        $titleType = 'Estado';
+        $titleEntity = 'Por rubro';
+        $hintType = 'Activas vs inactivas';
+        $hintEntity = 'Cantidad de empresas';
+        $unitLabel = 'count';
+        $currency = 'ARS';
+        require __DIR__ . '/../partials/list_charts.php';
+        ?>
+
+        <div class="panel mt">
             <table class="table">
                 <thead>
                 <tr>

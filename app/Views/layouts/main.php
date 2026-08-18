@@ -35,6 +35,7 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
             <?php if ($isAdmin): ?>
                 <a class="<?= e(nav_active('/')) ?>" href="<?= e(url('/')) ?>">Inicio</a>
                 <a class="<?= e(nav_active('/dashboard', true)) ?>" href="<?= e(url('/dashboard')) ?>">Dashboard</a>
+                <a class="<?= e(nav_active('/proyecciones', true)) ?>" href="<?= e(url('/proyecciones')) ?>">Proyecciones</a>
 
                 <details class="nav-drop<?= $wealthActive ? ' is-active' : '' ?>">
                     <summary>Patrimonio</summary>
@@ -92,7 +93,7 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
 <footer class="footer">
     <span><?= e($appName) ?></span>
 </footer>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-<script src="<?= e(url('/assets/js/app.js')) ?>?v=<?= (int) @filemtime(dirname(__DIR__, 3) . '/assets/js/app.js') ?>" defer></script>
+<script src="<?= e(url('/assets/js/chart.umd.min.js')) ?>?v=<?= (int) @filemtime(dirname(__DIR__, 3) . '/assets/js/chart.umd.min.js') ?>"></script>
+<script src="<?= e(url('/assets/js/app.js')) ?>?v=<?= (int) @filemtime(dirname(__DIR__, 3) . '/assets/js/app.js') ?>"></script>
 </body>
 </html>

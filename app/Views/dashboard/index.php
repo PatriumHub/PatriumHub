@@ -3,7 +3,6 @@ $hide = hide_amounts();
 $preset = $preset ?? '';
 $byCurrency = $byCurrency ?? ['labels' => [], 'values' => []];
 $ranking = $ranking ?? ['labels' => [], 'values' => [], 'ids' => []];
-$alerts = $alerts ?? [];
 
 $compositionLabels = ['Cuentas', 'Activos varios', 'Propiedades', 'Cobrables', 'Inventario', 'Participaciones'];
 $compositionRoutes = ['/cuentas', '/activos', '/propiedades', '/cobrables', '/inventario', '/participaciones'];
@@ -201,19 +200,6 @@ $modeLede = match (true) {
 
     <?php if (!empty($summary['note']) && !$focusLiquidity): ?>
         <p class="muted" style="margin:0"><?= e((string) $summary['note']) ?></p>
-    <?php endif; ?>
-
-    <?php if ($alerts !== []): ?>
-        <div class="alert-list" data-skeleton-target>
-            <?php foreach ($alerts as $a): ?>
-                <div class="alert-item <?= e($a['level'] ?? 'warn') ?>">
-                    <span><?= e($a['message']) ?></span>
-                    <?php if (!empty($a['href'])): ?>
-                        <a href="<?= e(url($a['href'])) ?>">Ver</a>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
-        </div>
     <?php endif; ?>
 
     <?php

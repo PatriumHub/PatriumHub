@@ -7,6 +7,7 @@ final class AssetController
     public static function index(): void
     {
         Auth::requireAdminArea();
+        AssetOwnerService::ensureSchema();
         $rows = Database::pdo()->query(
             "SELECT a.*, e.name AS entity_name, e.type AS entity_type, ac.name AS account_name
              FROM assets a
@@ -14,9 +15,96 @@ final class AssetController
              LEFT JOIN accounts ac ON ac.id = a.account_id
              ORDER BY e.name, a.name"
         )->fetchAll();
+        foreach ($rows as &$row) {
+            $row['owners_label'] = AssetOwnerService::labelForAsset(
+                (int) $row['id'],
+                (string) $row['entity_name'],
+                (string) ($row['entity_type'] ?? 'company')
+            );
+        }
+        unset($row);
+
+        $currency = preferred_list_currency($rows, 'current_value', 'ARS');
+        $catLabels = [
+            'vehicle' => 'Vehículos',
+            'equipment' => 'Equipos',
+            'machinery' => 'Maquinaria',
+            'investment' => 'Inversiones',
+            'intangible' => 'Intangibles',
+            'crypto' => 'Cripto',
+            'other' => 'Otros',
+        ];
+
+        $value = 0.0;
+        $inNw = 0;
+        $active = 0;
+        $byCategory = [];
+        $byEntity = [];
+        foreach ($rows as $row) {
+            if ((string) ($row['status'] ?? '') === 'active') {
+                $active++;
+            }
+            $rowCurrency = strtoupper(trim((string) ($row['currency_code'] ?? '')));
+            if ($rowCurrency !== $currency) {
+                continue;
+            }
+            $v = (float) ($row['current_value'] ?? 0);
+            $value += $v;
+            if ((int) ($row['include_in_net_worth'] ?? 1)) {
+                $inNw++;
+            }
+            $cat = (string) ($row['category'] ?? 'other');
+            $catName = $catLabels[$cat] ?? $cat;
+            $byCategory[$catName] = ($byCategory[$catName] ?? 0.0) + $v;
+
+            $owners = AssetOwnerService::forAsset((int) $row['id']);
+            if ($owners === []) {
+                $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+                $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $v;
+            } else {
+                $pctTotal = 0.0;
+                foreach ($owners as $ow) {
+                    $pctTotal += (float) ($ow['ownership_pct'] ?? 0);
+                }
+                if ($pctTotal <= 0.0001) {
+                    $pctTotal = 100.0;
+                }
+                foreach ($owners as $ow) {
+                    $share = $v * (((float) ($ow['ownership_pct'] ?? 0)) / $pctTotal);
+                    $oname = (string) ($ow['name'] ?? 'Titular');
+                    $byEntity[$oname] = ($byEntity[$oname] ?? 0.0) + $share;
+                }
+            }
+        }
+        arsort($byCategory);
+        arsort($byEntity);
+        $topCat = array_key_first($byCategory);
+        $topCatValue = $topCat !== null ? (float) $byCategory[$topCat] : 0.0;
+
         view('assets/index', [
             'title' => 'Activos varios',
             'rows' => $rows,
+            'currency' => $currency,
+            'currencies' => Catalog::currencies(),
+            'categoryLabels' => $catLabels,
+            'totals' => [
+                'value' => $value,
+                'count' => count($rows),
+                'active' => $active,
+                'in_net_worth' => $inNw,
+                'top_category' => $topCat ?? '—',
+                'top_category_value' => $topCatValue,
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($byCategory),
+                    'values' => array_values($byCategory),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byEntity),
+                    'values' => array_values($byEntity),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
@@ -25,6 +113,7 @@ final class AssetController
     public static function create(): void
     {
         Auth::requireAdminArea();
+        AssetOwnerService::ensureSchema();
         view('assets/form', [
             'title' => 'Nuevo activo',
             'asset' => [
@@ -37,6 +126,9 @@ final class AssetController
                 'status' => 'active',
                 'current_value' => 0,
             ],
+            'owners' => [],
+            'people' => Catalog::entities('person'),
+            'companies' => Catalog::entities('company'),
             'entities' => Catalog::entities(),
             'accounts' => self::accountsCatalog(),
             'currencies' => Catalog::currencies(),
@@ -48,16 +140,23 @@ final class AssetController
     {
         Auth::requireAdminArea();
         require_csrf();
-        $entityId = request_int('entity_id');
+        AssetOwnerService::ensureSchema();
+
+        $parsed = self::resolveOwnersAndEntity();
+        if ($parsed === null) {
+            flash('error', 'Elegí una empresa o al menos una persona titular.');
+            redirect('/activos/nuevo');
+        }
+        [$entityId, $owners, $ownershipPct] = $parsed;
         $name = post_string('name');
-        if (!$entityId || $name === '') {
-            flash('error', 'Entidad y nombre son obligatorios.');
+        if ($name === '') {
+            flash('error', 'El nombre es obligatorio.');
             redirect('/activos/nuevo');
         }
 
-        $payload = self::payload($entityId, $name);
+        $payload = self::payload($entityId, $name, $ownershipPct);
         if ($payload === null) {
-            flash('error', 'La cuenta asociada debe pertenecer a la misma entidad.');
+            flash('error', 'La cuenta asociada debe pertenecer a la misma entidad titular.');
             redirect('/activos/nuevo');
         }
 
@@ -85,6 +184,12 @@ final class AssetController
             );
             $stmt->execute($payload);
             $id = (int) $pdo->lastInsertId();
+
+            if ($owners !== []) {
+                AssetOwnerService::sync($id, $owners);
+            } else {
+                AssetOwnerService::clear($id);
+            }
 
             if ($debitAccountId && $amount > 0) {
                 $user = Auth::user();
@@ -126,6 +231,7 @@ final class AssetController
     public static function edit(string $id): void
     {
         Auth::requireAdminArea();
+        AssetOwnerService::ensureSchema();
         $asset = self::find((int) $id);
         if (!$asset) {
             flash('error', 'Activo no encontrado.');
@@ -134,6 +240,9 @@ final class AssetController
         view('assets/form', [
             'title' => 'Editar activo',
             'asset' => $asset,
+            'owners' => AssetOwnerService::forAsset((int) $id),
+            'people' => Catalog::entities('person'),
+            'companies' => Catalog::entities('company'),
             'entities' => Catalog::entities(),
             'accounts' => self::accountsCatalog(),
             'currencies' => Catalog::currencies(),
@@ -145,22 +254,29 @@ final class AssetController
     {
         Auth::requireAdminArea();
         require_csrf();
+        AssetOwnerService::ensureSchema();
         $assetId = (int) $id;
         $before = self::find($assetId);
         if (!$before) {
             flash('error', 'Activo no encontrado.');
             redirect('/activos');
         }
-        $entityId = request_int('entity_id');
+
+        $parsed = self::resolveOwnersAndEntity();
+        if ($parsed === null) {
+            flash('error', 'Elegí una empresa o al menos una persona titular.');
+            redirect('/activos/' . $assetId . '/editar');
+        }
+        [$entityId, $owners, $ownershipPct] = $parsed;
         $name = post_string('name');
-        if (!$entityId || $name === '') {
-            flash('error', 'Entidad y nombre son obligatorios.');
+        if ($name === '') {
+            flash('error', 'El nombre es obligatorio.');
             redirect('/activos/' . $assetId . '/editar');
         }
 
-        $payload = self::payload($entityId, $name);
+        $payload = self::payload($entityId, $name, $ownershipPct);
         if ($payload === null) {
-            flash('error', 'La cuenta elegida debe pertenecer a la misma entidad.');
+            flash('error', 'La cuenta elegida debe pertenecer a la misma entidad titular.');
             redirect('/activos/' . $assetId . '/editar');
         }
         $payload['id'] = $assetId;
@@ -172,13 +288,48 @@ final class AssetController
              WHERE id = :id'
         )->execute($payload);
 
+        if ($owners !== []) {
+            AssetOwnerService::sync($assetId, $owners);
+        } else {
+            AssetOwnerService::clear($assetId);
+        }
+
         AuditService::log('update', 'asset', $assetId, 'Edición activo: ' . $name, $before, self::find($assetId));
         flash('success', 'Activo actualizado.');
         redirect('/activos');
     }
 
+    /**
+     * @return array{0:int,1:list<array{entity_id:int,ownership_pct:float}>,2:float}|null
+     */
+    private static function resolveOwnersAndEntity(): ?array
+    {
+        $mode = post_string('owner_mode', 'people');
+        if ($mode === 'company') {
+            $entityId = request_int('company_entity_id') ?: request_int('entity_id');
+            if (!$entityId) {
+                return null;
+            }
+            $stmt = Database::pdo()->prepare('SELECT type FROM entities WHERE id = :id LIMIT 1');
+            $stmt->execute(['id' => $entityId]);
+            if ((string) $stmt->fetchColumn() !== 'company') {
+                return null;
+            }
+            return [$entityId, [], 100.0];
+        }
+
+        $owners = AssetOwnerService::ownersFromPost();
+        if ($owners === null || $owners === []) {
+            return null;
+        }
+        usort($owners, static fn ($a, $b) => $b['ownership_pct'] <=> $a['ownership_pct']);
+        $entityId = (int) $owners[0]['entity_id'];
+        // En assets.ownership_pct guardamos 100: el desglose vive en asset_owners.
+        return [$entityId, $owners, 100.0];
+    }
+
     /** @return array<string,mixed>|null null si la cuenta no pertenece a la entidad */
-    private static function payload(int $entityId, string $name): ?array
+    private static function payload(int $entityId, string $name, float $ownershipPct): ?array
     {
         $accountId = request_int('account_id');
         if ($accountId) {
@@ -199,23 +350,13 @@ final class AssetController
             'category' => post_string('category', 'other'),
             'currency_code' => post_string('currency_code', 'ARS'),
             'current_value' => post_float('current_value'),
-            'ownership_pct' => self::ownershipPctForEntity($entityId),
+            'ownership_pct' => $ownershipPct,
             'valuation_method' => post_string('valuation_method') ?: null,
             'valued_at' => post_string('valued_at') ?: null,
             'include_in_net_worth' => bool_post('include_in_net_worth'),
             'status' => post_string('status', 'active'),
             'notes' => post_string('notes') ?: null,
         ];
-    }
-
-    private static function ownershipPctForEntity(int $entityId): float
-    {
-        $stmt = Database::pdo()->prepare('SELECT type FROM entities WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $entityId]);
-        if ((string) $stmt->fetchColumn() === 'company') {
-            return 100.0;
-        }
-        return post_float('ownership_pct', 100);
     }
 
     /** @return list<array{id:int,name:string,entity_id:int,entity_name:string}> */

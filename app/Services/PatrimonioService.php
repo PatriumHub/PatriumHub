@@ -415,21 +415,54 @@ final class PatrimonioService
     /** @param array<int, array> $byEntity @param list<int> $ids */
     private static function accumulateAssets(array &$byEntity, array $ids, string $currency): void
     {
+        AssetOwnerService::ensureSchema();
         $in = self::placeholders($ids);
-        // Empresas: valor completo del activo (el % personal va por participaciones).
-        // Personas: sí aplica ownership_pct del activo (co-titularidad).
-        $sql = "SELECT a.entity_id,
-                       COALESCE(SUM(
-                           CASE WHEN e.type = 'company' THEN a.current_value
-                                ELSE a.current_value * a.ownership_pct / 100
-                           END
-                       ), 0) AS total
+        $pdo = Database::pdo();
+
+        // Empresas: valor completo (el % personal va por participaciones).
+        $sqlCompany = "SELECT a.entity_id, COALESCE(SUM(a.current_value), 0) AS total
                 FROM assets a
-                INNER JOIN entities e ON e.id = a.entity_id
+                INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'company'
                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
                   AND a.currency_code = :cur AND a.entity_id IN ($in)
                 GROUP BY a.entity_id";
-        $stmt = Database::pdo()->prepare($sql);
+        $stmt = $pdo->prepare($sqlCompany);
+        $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+        foreach ($stmt->fetchAll() as $r) {
+            $id = (int) $r['entity_id'];
+            if (isset($byEntity[$id])) {
+                $byEntity[$id]['assets'] += (float) $r['total'];
+            }
+        }
+
+        // Personas con co-titulares en asset_owners.
+        $sqlOwners = "SELECT ao.entity_id,
+                             COALESCE(SUM(a.current_value * ao.ownership_pct / 100), 0) AS total
+                FROM asset_owners ao
+                INNER JOIN assets a ON a.id = ao.asset_id
+                INNER JOIN entities e ON e.id = ao.entity_id AND e.type = 'person'
+                WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                  AND a.currency_code = :cur AND ao.entity_id IN ($in)
+                GROUP BY ao.entity_id";
+        $stmt = $pdo->prepare($sqlOwners);
+        $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+        foreach ($stmt->fetchAll() as $r) {
+            $id = (int) $r['entity_id'];
+            if (isset($byEntity[$id])) {
+                $byEntity[$id]['assets'] += (float) $r['total'];
+            }
+        }
+
+        // Legacy: activos de persona sin filas en asset_owners.
+        $sqlLegacy = "SELECT a.entity_id,
+                             COALESCE(SUM(a.current_value * a.ownership_pct / 100), 0) AS total
+                FROM assets a
+                INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'person'
+                WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                  AND a.currency_code = :cur AND a.entity_id IN ($in)
+                  AND NOT EXISTS (SELECT 1 FROM asset_owners ao WHERE ao.asset_id = a.id)
+                GROUP BY a.entity_id";
+        $stmt = $pdo->prepare($sqlLegacy);
         $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
         foreach ($stmt->fetchAll() as $r) {
             $id = (int) $r['entity_id'];
@@ -521,7 +554,7 @@ final class PatrimonioService
         }
     }
 
-    /** Presupuestos pendientes del mes (y meses anteriores no liquidados) como pasivo. */
+    /** Presupuestos pendientes del mes actual y anteriores no liquidados (no meses futuros). */
     private static function accumulateBudgetLiabilities(array &$byEntity, array $ids, string $currency): void
     {
         try {
@@ -531,15 +564,17 @@ final class PatrimonioService
             return;
         }
 
+        $through = date('Y-m');
         $in = self::placeholders($ids);
         $sql = "SELECT entity_id, COALESCE(SUM(amount),0) AS total
                 FROM budget_items
                 WHERE status = 'pending' AND include_in_net_worth = 1
+                  AND period_ym <= :through
                   AND currency_code = :cur AND entity_id IN ($in)
                 GROUP BY entity_id";
         try {
             $stmt = Database::pdo()->prepare($sql);
-            $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+            $stmt->execute(self::bindIds($ids, ['cur' => $currency, 'through' => $through]));
         } catch (Throwable) {
             return;
         }

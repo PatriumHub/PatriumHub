@@ -13,9 +13,89 @@ final class PropertyController
              INNER JOIN entities e ON e.id = p.entity_id
              ORDER BY e.name, p.name"
         )->fetchAll();
+
+        $currency = preferred_list_currency($rows, 'current_value', 'USD');
+        $typeLabels = [
+            'house' => 'Casa',
+            'apartment' => 'Departamento',
+            'local' => 'Local',
+            'warehouse' => 'Depósito',
+            'land' => 'Terreno',
+            'office' => 'Oficina',
+            'other' => 'Otro',
+        ];
+
+        $value = 0.0;
+        $ownedValue = 0.0;
+        $inNw = 0;
+        $active = 0;
+        $homes = 0.0;
+        $homeTypes = ['house', 'apartment'];
+        $byType = [];
+        $byEntity = [];
+        $byTypeCount = [];
+        $byEntityCount = [];
+        foreach ($rows as $row) {
+            if ((string) ($row['status'] ?? '') === 'active') {
+                $active++;
+            }
+            $type = (string) ($row['property_type'] ?? 'other');
+            $typeName = $typeLabels[$type] ?? $type;
+            $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+            $byTypeCount[$typeName] = ($byTypeCount[$typeName] ?? 0) + 1;
+            $byEntityCount[$ename] = ($byEntityCount[$ename] ?? 0) + 1;
+
+            $rowCurrency = strtoupper(trim((string) ($row['currency_code'] ?? '')));
+            if ($rowCurrency !== $currency) {
+                continue;
+            }
+            $v = (float) ($row['current_value'] ?? 0);
+            $pct = (float) ($row['ownership_pct'] ?? 100) / 100.0;
+            $value += $v;
+            $ownedValue += $v * $pct;
+            if ((int) ($row['include_in_net_worth'] ?? 1)) {
+                $inNw++;
+            }
+            $byType[$typeName] = ($byType[$typeName] ?? 0.0) + $v;
+            $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $v;
+            if (in_array($type, $homeTypes, true)) {
+                $homes += $v;
+            }
+        }
+        $unitLabel = 'money';
+        if (array_sum($byType) <= 0.009) {
+            $byType = $byTypeCount;
+            $byEntity = $byEntityCount;
+            $unitLabel = 'count';
+        }
+        arsort($byType);
+        arsort($byEntity);
+
         view('properties/index', [
             'title' => 'Propiedades',
             'rows' => $rows,
+            'currency' => $currency,
+            'currencies' => Catalog::currencies(),
+            'typeLabels' => $typeLabels,
+            'totals' => [
+                'value' => $value,
+                'owned_value' => $ownedValue,
+                'homes' => $homes,
+                'count' => count($rows),
+                'active' => $active,
+                'in_net_worth' => $inNw,
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($byType),
+                    'values' => array_values($byType),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byEntity),
+                    'values' => array_values($byEntity),
+                ],
+            ],
+            'chartUnit' => $unitLabel,
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
@@ -114,6 +194,35 @@ final class PropertyController
         )->execute($payload);
         AuditService::log('update', 'property', $propertyId, 'Edición propiedad: ' . $name, $before, self::find($propertyId));
         flash('success', 'Propiedad actualizada.');
+        redirect('/propiedades');
+    }
+
+    public static function destroy(string $id): void
+    {
+        Auth::requireAdminArea();
+        require_csrf();
+        $propertyId = (int) $id;
+        $property = self::find($propertyId);
+        if (!$property) {
+            flash('error', 'Propiedad no encontrada.');
+            redirect('/propiedades');
+        }
+
+        try {
+            Database::pdo()->prepare('DELETE FROM properties WHERE id = :id')->execute(['id' => $propertyId]);
+            AuditService::log(
+                'delete',
+                'property',
+                $propertyId,
+                'Eliminación propiedad: ' . ($property['name'] ?? ''),
+                $property,
+                null
+            );
+            flash('success', 'Propiedad eliminada.');
+        } catch (Throwable $e) {
+            flash('error', 'No se pudo eliminar: ' . $e->getMessage());
+            redirect('/propiedades/' . $propertyId . '/editar');
+        }
         redirect('/propiedades');
     }
 

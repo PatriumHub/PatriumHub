@@ -15,9 +15,44 @@ final class OwnershipController
              ORDER BY company.name, o.ownership_pct DESC"
         )->fetchAll();
 
+        $owners = [];
+        $companies = [];
+        $pctSum = 0.0;
+        $byOwner = [];
+        $byCompany = [];
+        foreach ($rows as $row) {
+            $owners[(int) $row['owner_entity_id']] = true;
+            $companies[(int) $row['company_entity_id']] = true;
+            $pct = (float) ($row['ownership_pct'] ?? 0);
+            $pctSum += $pct;
+            $on = (string) ($row['owner_name'] ?? 'Dueño');
+            $cn = (string) ($row['company_name'] ?? 'Empresa');
+            $byOwner[$on] = ($byOwner[$on] ?? 0.0) + $pct;
+            $byCompany[$cn] = ($byCompany[$cn] ?? 0.0) + $pct;
+        }
+        $count = count($rows);
+        arsort($byOwner);
+        arsort($byCompany);
+
         view('ownerships/index', [
             'title' => 'Participaciones',
             'rows' => $rows,
+            'totals' => [
+                'count' => $count,
+                'owners' => count($owners),
+                'companies' => count($companies),
+                'avg_pct' => $count > 0 ? ($pctSum / $count) : 0.0,
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($byOwner),
+                    'values' => array_values($byOwner),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byCompany),
+                    'values' => array_values($byCompany),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);

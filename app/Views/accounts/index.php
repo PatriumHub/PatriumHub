@@ -87,8 +87,9 @@ $chartPayload = [
     <?php else: ?>
         <div class="stat-row">
             <div class="stat tone-green">
-                <span class="stat-label">Total en cuentas</span>
+                <span class="stat-label">Valor total</span>
                 <span class="stat-value"><?= $hide ? '••••' : e(money($totals['balance'], $currency)) ?></span>
+                <span class="stat-hint muted">Saldo en cuentas · <?= e($currency) ?></span>
             </div>
             <div class="stat tone-teal">
                 <span class="stat-label">Cuentas bancarias</span>

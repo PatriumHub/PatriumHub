@@ -45,18 +45,67 @@ final class DashboardAnalyticsService
             $params
         );
         $add(
-            "SELECT a.currency_code,
-                    COALESCE(SUM(
-                        CASE WHEN e.type = 'company' THEN a.current_value
-                             ELSE a.current_value * a.ownership_pct / 100
-                        END
-                    ),0) AS total
+            "SELECT a.currency_code, COALESCE(SUM(a.current_value),0) AS total
              FROM assets a
-             INNER JOIN entities e ON e.id = a.entity_id
+             INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'company'
              WHERE a.status = 'active' AND a.include_in_net_worth = 1{$assetEntityFilter}
              GROUP BY a.currency_code",
             $params
         );
+        AssetOwnerService::ensureSchema();
+        if ($entityIds !== null && $entityIds !== []) {
+            $aoParams = [];
+            $ph = [];
+            foreach (array_values($entityIds) as $i => $id) {
+                $key = 'ao' . $i;
+                $ph[] = ':' . $key;
+                $aoParams[$key] = (int) $id;
+            }
+            $aoIn = implode(',', $ph);
+            $add(
+                "SELECT a.currency_code,
+                        COALESCE(SUM(a.current_value * ao.ownership_pct / 100),0) AS total
+                 FROM asset_owners ao
+                 INNER JOIN assets a ON a.id = ao.asset_id
+                 INNER JOIN entities e ON e.id = ao.entity_id AND e.type = 'person'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                   AND ao.entity_id IN ($aoIn)
+                 GROUP BY a.currency_code",
+                $aoParams
+            );
+            $add(
+                "SELECT a.currency_code,
+                        COALESCE(SUM(a.current_value * a.ownership_pct / 100),0) AS total
+                 FROM assets a
+                 INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'person'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                   AND a.entity_id IN ($aoIn)
+                   AND NOT EXISTS (SELECT 1 FROM asset_owners x WHERE x.asset_id = a.id)
+                 GROUP BY a.currency_code",
+                $aoParams
+            );
+        } else {
+            $add(
+                "SELECT a.currency_code,
+                        COALESCE(SUM(a.current_value * ao.ownership_pct / 100),0) AS total
+                 FROM asset_owners ao
+                 INNER JOIN assets a ON a.id = ao.asset_id
+                 INNER JOIN entities e ON e.id = ao.entity_id AND e.type = 'person'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                 GROUP BY a.currency_code",
+                []
+            );
+            $add(
+                "SELECT a.currency_code,
+                        COALESCE(SUM(a.current_value * a.ownership_pct / 100),0) AS total
+                 FROM assets a
+                 INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'person'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                   AND NOT EXISTS (SELECT 1 FROM asset_owners x WHERE x.asset_id = a.id)
+                 GROUP BY a.currency_code",
+                []
+            );
+        }
         $add(
             "SELECT p.currency_code,
                     COALESCE(SUM(

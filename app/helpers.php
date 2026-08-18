@@ -287,6 +287,42 @@ function bool_post(string $key): int
     return isset($_POST[$key]) ? 1 : 0;
 }
 
+/**
+ * Moneda para totales/gráficos de listados.
+ * Si el usuario eligió ?currency=, se respeta; si no, la de mayor monto.
+ *
+ * @param list<array<string,mixed>> $rows
+ */
+function preferred_list_currency(array $rows, string $amountKey, string $fallback = 'ARS'): string
+{
+    if (isset($_GET['currency']) && is_string($_GET['currency']) && trim($_GET['currency']) !== '') {
+        return strtoupper(trim($_GET['currency']));
+    }
+
+    $sums = [];
+    $counts = [];
+    foreach ($rows as $row) {
+        $code = strtoupper(trim((string) ($row['currency_code'] ?? '')));
+        if ($code === '') {
+            continue;
+        }
+        $counts[$code] = ($counts[$code] ?? 0) + 1;
+        $sums[$code] = ($sums[$code] ?? 0.0) + abs((float) ($row[$amountKey] ?? 0));
+    }
+    if ($sums !== []) {
+        arsort($sums);
+        $top = (string) array_key_first($sums);
+        if (($sums[$top] ?? 0) > 0.009) {
+            return $top;
+        }
+    }
+    if ($counts !== []) {
+        arsort($counts);
+        return (string) array_key_first($counts);
+    }
+    return strtoupper($fallback);
+}
+
 function current_route_path(): string
 {
     if (isset($_GET['r']) && is_string($_GET['r']) && $_GET['r'] !== '') {

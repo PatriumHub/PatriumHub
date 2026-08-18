@@ -1,8 +1,29 @@
 <?php
 $hide = hide_amounts();
 $personRows = $summary['by_entity'] ?? [];
-$person = $personRows[0] ?? null;
-$personId = $person ? (int) ($person['entity_id'] ?? 0) : 0;
+$entities = $entities ?? [];
+$selectedPersonId = (int) ($entityId ?? 0);
+$selectedPersonName = '';
+if ($selectedPersonId > 0) {
+    foreach ($personRows as $row) {
+        if ((int) ($row['entity_id'] ?? 0) === $selectedPersonId) {
+            $selectedPersonName = (string) ($row['name'] ?? '');
+            break;
+        }
+    }
+    if ($selectedPersonName === '') {
+        foreach ($entities as $ent) {
+            if ((int) ($ent['id'] ?? 0) === $selectedPersonId) {
+                $selectedPersonName = (string) ($ent['name'] ?? '');
+                break;
+            }
+        }
+    }
+}
+$scopeLabel = $selectedPersonId > 0
+    ? ($selectedPersonName !== '' ? $selectedPersonName : 'Persona')
+    : 'Todas las personas';
+$personId = $selectedPersonId;
 
 $ownAssets = (float) ($summary['accounts'] ?? 0)
     + (float) ($summary['assets'] ?? 0)
@@ -52,7 +73,7 @@ $flowOut = (float) ($flow['expense'] ?? 0);
 $chartPayload = [
     'hide' => $hide,
     'currency' => $currency,
-    'entityId' => $personId ?: null,
+    'entityId' => $selectedPersonId ?: null,
     'baseUrl' => base_path() . '/index.php',
     'mode' => 'personal',
     'wealthSplit' => [
@@ -94,6 +115,7 @@ $liqPct = $net > 0 ? min(100, round(($liq / $net) * 100)) : 0;
 $exportQ = array_filter([
     'mode' => 'personal',
     'currency' => $currency,
+    'entity_id' => $selectedPersonId ?: null,
 ], static fn ($v) => $v !== null && $v !== '');
 ?>
 <section class="page personal-dash">
@@ -108,6 +130,9 @@ $exportQ = array_filter([
                 <?= csrf_field() ?>
                 <input type="hidden" name="mode" value="personal">
                 <input type="hidden" name="currency" value="<?= e($currency) ?>">
+                <?php if ($selectedPersonId > 0): ?>
+                    <input type="hidden" name="entity_id" value="<?= $selectedPersonId ?>">
+                <?php endif; ?>
                 <button type="submit" class="btn ghost">Snapshot</button>
             </form>
         </div>
@@ -125,6 +150,15 @@ $exportQ = array_filter([
         <input type="hidden" name="preset" value="personal">
         <input type="hidden" name="mode" value="personal">
         <label>
+            Persona
+            <select name="entity_id" onchange="this.form.submit()">
+                <option value=""<?= $selectedPersonId < 1 ? ' selected' : '' ?>>Todas juntas</option>
+                <?php foreach ($entities as $ent): ?>
+                    <option value="<?= (int) $ent['id'] ?>"<?= selected($selectedPersonId, $ent['id']) ?>><?= e($ent['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label>
             Moneda
             <select name="currency" onchange="this.form.submit()">
                 <?php foreach ($currencies as $c): ?>
@@ -139,7 +173,7 @@ $exportQ = array_filter([
         </div>
     </form>
 
-    <?php if (empty($personRows)): ?>
+    <?php if (empty($personRows) && empty($entities)): ?>
         <div class="alert alert-error">No hay personas activas. Creá una en Personas.</div>
     <?php else: ?>
 
@@ -147,12 +181,14 @@ $exportQ = array_filter([
         <div class="personal-hero-main">
             <span class="stat-label">Patrimonio neto</span>
             <div class="personal-hero-value"><?= $hide ? '••••' : e(money($net, $currency)) ?></div>
-            <?php if ($person): ?>
-                <p class="muted personal-hero-sub">
-                    <a href="<?= e(url('/personas/' . $personId . '?tab=resumen&currency=' . urlencode($currency))) ?>"><?= e((string) $person['name']) ?></a>
-                    · <?= e($currency) ?>
-                </p>
-            <?php endif; ?>
+            <p class="muted personal-hero-sub">
+                <?php if ($selectedPersonId > 0): ?>
+                    <a href="<?= e(url('/personas/' . $selectedPersonId . '?tab=resumen&currency=' . urlencode($currency))) ?>"><?= e($scopeLabel) ?></a>
+                <?php else: ?>
+                    <?= e($scopeLabel) ?>
+                <?php endif; ?>
+                · <?= e($currency) ?>
+            </p>
         </div>
         <div class="personal-hero-side">
             <div class="personal-meter">

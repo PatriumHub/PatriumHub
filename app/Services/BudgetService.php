@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Presupuestos / costos fijos mensuales.
- * Plantillas → ítems por período (pending cuentan como pasivo).
+ * Plantillas → ítems por período (pending del mes actual/pasados cuentan como pasivo).
  */
 final class BudgetService
 {

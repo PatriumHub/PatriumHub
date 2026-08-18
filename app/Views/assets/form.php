@@ -5,17 +5,73 @@
     $a = $asset;
     $isEdit = !empty($a['id']);
     $accounts = $accounts ?? [];
+    $people = $people ?? [];
+    $companies = $companies ?? [];
+    $owners = $owners ?? [];
+    $ownerMap = [];
+    foreach ($owners as $o) {
+        $ownerMap[(int) $o['entity_id']] = (float) $o['ownership_pct'];
+    }
+    $entityType = 'person';
+    if (!empty($a['entity_id'])) {
+        foreach (($entities ?? []) as $ent) {
+            if ((int) $ent['id'] === (int) $a['entity_id']) {
+                $entityType = (string) ($ent['type'] ?? 'person');
+                break;
+            }
+        }
+    }
+    $ownerMode = $entityType === 'company' ? 'company' : 'people';
+    if ($owners !== []) {
+        $ownerMode = 'people';
+    }
+    $equalPct = $people !== [] ? round(100 / max(1, count($people)), 4) : 100;
     ?>
     <form method="post" action="<?= e(url($isEdit ? '/activos/' . $a['id'] : '/activos')) ?>" class="panel form-grid" id="asset-form">
         <?= csrf_field() ?>
-        <label>Entidad *
-            <select name="entity_id" id="asset-entity" required>
+        <label>Titularidad *
+            <select name="owner_mode" id="owner-mode" required>
+                <option value="people"<?= selected($ownerMode, 'people') ?>>Persona(s)</option>
+                <option value="company"<?= selected($ownerMode, 'company') ?>>Empresa</option>
+            </select>
+        </label>
+
+        <div class="span-2" id="people-owners-wrap"<?= $ownerMode === 'company' ? ' hidden' : '' ?>>
+            <p class="muted" style="margin:0 0 0.5rem">Podés marcar varias personas y repartir el %. Si no suman 100, se normaliza al guardar.</p>
+            <div class="stack" style="gap:0.55rem">
+                <?php foreach ($people as $p): ?>
+                    <?php
+                    $pid = (int) $p['id'];
+                    $checked = array_key_exists($pid, $ownerMap)
+                        || (!$isEdit && (int) ($a['entity_id'] ?? 0) === $pid)
+                        || (!$isEdit && $ownerMap === [] && count($people) === 1);
+                    $pctVal = $ownerMap[$pid] ?? ($checked ? ($ownerMap === [] && count($people) <= 2 ? (count($people) === 1 ? 100 : 50) : $equalPct) : 0);
+                    ?>
+                    <label class="check" style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+                        <input type="checkbox" name="owner_ids[]" value="<?= $pid ?>" class="owner-check"
+                            data-pct="<?= $pid ?>"<?= $checked ? ' checked' : '' ?>>
+                        <span style="min-width:8rem"><?= e($p['name']) ?></span>
+                        <input type="number" name="owner_pct[<?= $pid ?>]" class="owner-pct" data-for="<?= $pid ?>"
+                               step="0.01" min="0" max="100" value="<?= e((string) $pctVal) ?>"
+                               style="width:6.5rem"<?= $checked ? '' : ' disabled' ?>>
+                        <span class="muted">%</span>
+                    </label>
+                <?php endforeach; ?>
+                <?php if ($people === []): ?>
+                    <p class="muted">No hay personas. Creá una en Personas primero.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <label id="company-owner-wrap"<?= $ownerMode === 'company' ? '' : ' hidden' ?>>Empresa *
+            <select name="company_entity_id" id="company-entity">
                 <option value="">—</option>
-                <?php foreach ($entities as $ent): ?>
-                    <option value="<?= (int) $ent['id'] ?>"<?= selected($a['entity_id'] ?? '', $ent['id']) ?>><?= e($ent['name']) ?></option>
+                <?php foreach ($companies as $c): ?>
+                    <option value="<?= (int) $c['id'] ?>"<?= selected($a['entity_id'] ?? '', $c['id']) ?>><?= e($c['name']) ?></option>
                 <?php endforeach; ?>
             </select>
         </label>
+
         <label>Cuenta asociada
             <select name="account_id" id="asset-account">
                 <option value="">— ninguna —</option>
@@ -27,7 +83,7 @@
                     </option>
                 <?php endforeach; ?>
             </select>
-            <span class="hint" style="margin:0">Opcional: vincular a una cuenta (p. ej. inversión). No mueve saldo.</span>
+            <span class="hint" style="margin:0">Opcional. Para personas múltiples, filtrá por el titular principal (mayor %).</span>
         </label>
         <?php if (!$isEdit): ?>
         <label>Debitar compra de
@@ -40,7 +96,7 @@
                     </option>
                 <?php endforeach; ?>
             </select>
-            <span class="hint" style="margin:0">Opcional: si lo pagás desde una cuenta, se registra el egreso y baja el saldo por el valor actual.</span>
+            <span class="hint" style="margin:0">Opcional: registra el egreso y baja el saldo por el valor actual.</span>
         </label>
         <?php endif; ?>
         <label>Nombre *
@@ -68,20 +124,6 @@
         <label>Valor actual
             <input name="current_value" value="<?= e((string) ($a['current_value'] ?? '0')) ?>">
         </label>
-        <?php
-        $entityTypes = [];
-        foreach ($entities as $ent) {
-            $entityTypes[(int) $ent['id']] = (string) ($ent['type'] ?? 'company');
-        }
-        $selectedType = $entityTypes[(int) ($a['entity_id'] ?? 0)] ?? 'person';
-        ?>
-        <label id="asset-ownership-wrap"<?= $selectedType === 'company' ? ' hidden' : '' ?>>
-            % que te pertenece (activo personal)
-            <input name="ownership_pct" id="asset-ownership" type="number" step="0.01" min="0" max="100"
-                   value="<?= e((string) ($selectedType === 'company' ? '100' : ($a['ownership_pct'] ?? '100'))) ?>">
-            <span class="hint" style="margin:0">Solo para activos a tu nombre. Si es de una empresa, tu % se define en Participaciones.</span>
-        </label>
-        <input type="hidden" name="ownership_pct" id="asset-ownership-company" value="100"<?= $selectedType === 'company' ? '' : ' disabled' ?>>
         <?php if ($isEdit): ?>
             <label>Estado
                 <select name="status">
@@ -102,43 +144,66 @@
 </section>
 <script>
 (() => {
-  const entity = document.getElementById('asset-entity');
+  const mode = document.getElementById('owner-mode');
+  const peopleWrap = document.getElementById('people-owners-wrap');
+  const companyWrap = document.getElementById('company-owner-wrap');
+  const company = document.getElementById('company-entity');
   const account = document.getElementById('asset-account');
   const debit = document.getElementById('asset-debit-account');
-  const ownershipWrap = document.getElementById('asset-ownership-wrap');
-  const ownership = document.getElementById('asset-ownership');
-  const ownershipCompany = document.getElementById('asset-ownership-company');
-  const entityTypes = <?= json_encode($entityTypes, JSON_UNESCAPED_UNICODE) ?>;
-  if (!entity || !account) return;
-  const filterSelect = (select, sameEntityOnly) => {
-    if (!select) return;
-    const eid = entity.value;
-    let keep = false;
-    [...select.options].forEach((opt, i) => {
-      if (i === 0) { opt.hidden = false; return; }
-      const match = !sameEntityOnly || !eid || opt.dataset.entity === eid;
-      opt.hidden = !match;
-      if (opt.selected && match) keep = true;
+  if (!mode) return;
+
+  const syncMode = () => {
+    const isCompany = mode.value === 'company';
+    if (peopleWrap) peopleWrap.hidden = isCompany;
+    if (companyWrap) companyWrap.hidden = !isCompany;
+    if (company) company.required = isCompany;
+    filterAccounts();
+  };
+
+  const primaryEntityId = () => {
+    if (mode.value === 'company') return company ? company.value : '';
+    let best = null;
+    let bestPct = -1;
+    document.querySelectorAll('.owner-check:checked').forEach((cb) => {
+      const pctEl = document.querySelector('.owner-pct[data-for="' + cb.value + '"]');
+      const pct = pctEl ? Number(pctEl.value) || 0 : 0;
+      if (pct > bestPct) { bestPct = pct; best = cb.value; }
     });
-    if (!keep) select.value = '';
+    return best || '';
   };
-  const syncOwnership = () => {
-    const type = entityTypes[entity.value] || 'person';
-    const isCompany = type === 'company';
-    if (ownershipWrap) ownershipWrap.hidden = isCompany;
-    if (ownership) ownership.disabled = isCompany;
-    if (ownershipCompany) {
-      ownershipCompany.disabled = !isCompany;
-      if (isCompany) ownershipCompany.value = '100';
-    }
+
+  const filterAccounts = () => {
+    const eid = primaryEntityId();
+    [account, debit].forEach((select) => {
+      if (!select) return;
+      let keep = false;
+      [...select.options].forEach((opt, i) => {
+        if (i === 0) { opt.hidden = false; return; }
+        // Débito: cualquier cuenta; asociada: preferir misma entidad si hay.
+        const match = select === debit || !eid || opt.dataset.entity === eid;
+        opt.hidden = select === debit ? false : !match;
+        if (opt.selected && (select === debit || match)) keep = true;
+      });
+      if (!keep) select.value = '';
+    });
   };
-  const filter = () => {
-    filterSelect(account, true);
-    // Débito: se puede pagar desde cualquier cuenta activa (p. ej. personal → activo empresa).
-    filterSelect(debit, false);
-    syncOwnership();
-  };
-  entity.addEventListener('change', filter);
-  filter();
+
+  document.querySelectorAll('.owner-check').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const pct = document.querySelector('.owner-pct[data-for="' + cb.value + '"]');
+      if (pct) {
+        pct.disabled = !cb.checked;
+        if (cb.checked && (!pct.value || Number(pct.value) <= 0)) {
+          const n = document.querySelectorAll('.owner-check:checked').length;
+          pct.value = n <= 1 ? '100' : String(Math.round(1000 / n) / 10);
+        }
+      }
+      filterAccounts();
+    });
+  });
+  document.querySelectorAll('.owner-pct').forEach((el) => el.addEventListener('input', filterAccounts));
+  mode.addEventListener('change', syncMode);
+  if (company) company.addEventListener('change', filterAccounts);
+  syncMode();
 })();
 </script>

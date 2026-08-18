@@ -13,9 +13,59 @@ final class InventoryController
              INNER JOIN entities e ON e.id = i.entity_id
              ORDER BY e.name, i.name"
         )->fetchAll();
+
+        $currency = preferred_list_currency($rows, 'stock_value', 'ARS');
+
+        $value = 0.0;
+        $units = 0.0;
+        $inNw = 0;
+        $entities = [];
+        $byEntity = [];
+        $bySource = [];
+        foreach ($rows as $row) {
+            $rowCurrency = strtoupper(trim((string) ($row['currency_code'] ?? '')));
+            if ($rowCurrency !== $currency) {
+                continue;
+            }
+            $v = (float) ($row['stock_value'] ?? 0);
+            $value += $v;
+            $units += (float) ($row['units_total'] ?? 0);
+            if ((int) ($row['include_in_net_worth'] ?? 1)) {
+                $inNw++;
+            }
+            $eid = (int) ($row['entity_id'] ?? 0);
+            $entities[$eid] = true;
+            $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+            $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $v;
+            $src = (string) ($row['source'] ?? 'manual');
+            $srcLabel = $src === 'manual' ? 'Manual' : $src;
+            $bySource[$srcLabel] = ($bySource[$srcLabel] ?? 0.0) + $v;
+        }
+        arsort($byEntity);
+        arsort($bySource);
+
         view('inventories/index', [
             'title' => 'Inventario',
             'rows' => $rows,
+            'currency' => $currency,
+            'currencies' => Catalog::currencies(),
+            'totals' => [
+                'value' => $value,
+                'units' => $units,
+                'in_net_worth' => $inNw,
+                'entities' => count($entities),
+                'count' => count($rows),
+            ],
+            'charts' => [
+                'byType' => [
+                    'labels' => array_keys($bySource),
+                    'values' => array_values($bySource),
+                ],
+                'byEntity' => [
+                    'labels' => array_keys($byEntity),
+                    'values' => array_values($byEntity),
+                ],
+            ],
             'success' => flash('success'),
             'error' => flash('error'),
         ]);
