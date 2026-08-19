@@ -162,7 +162,10 @@ final class PeopleController
         $planCompare = null;
         if ($tab === 'resumen' || $tab === 'proyecciones') {
             $personPlan = PersonFinancialPlanService::ensureForPerson($entityId);
-            $planStats = PersonFinancialPlanService::yearStats($personPlan['workbook']);
+            $yearIdx = $tab === 'resumen'
+                ? PersonFinancialPlanService::yearIndexForCalendar($personPlan['workbook'])
+                : null;
+            $planStats = PersonFinancialPlanService::yearStats($personPlan['workbook'], $yearIdx);
             $planCompare = PersonFinancialPlanService::compareToReality($summary, $planStats);
         }
 

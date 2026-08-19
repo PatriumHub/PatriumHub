@@ -1,4 +1,25 @@
 (() => {
+  const themeKey = 'patrium-theme';
+  const root = document.documentElement;
+  const themeToggles = [...document.querySelectorAll('.theme-toggle')];
+
+  const syncThemeLabel = () => {
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    themeToggles.forEach((btn) => {
+      btn.setAttribute('aria-label', isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+    });
+  };
+  syncThemeLabel();
+
+  themeToggles.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem(themeKey, next); } catch (_) {}
+      syncThemeLabel();
+    });
+  });
+
   const reveal = () => {
     document.querySelectorAll('[data-skeleton]').forEach((el) => {
       el.classList.add('is-done');
@@ -19,6 +40,21 @@
       if (!d.contains(e.target)) d.removeAttribute('open');
     });
   });
+
+  const backToTop = document.getElementById('back-to-top');
+  if (backToTop) {
+    const threshold = 280;
+    const syncBackToTop = () => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      backToTop.classList.toggle('is-visible', y > threshold);
+    };
+    syncBackToTop();
+    window.addEventListener('scroll', syncBackToTop, { passive: true });
+    backToTop.addEventListener('click', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    });
+  }
 
   const topbar = document.getElementById('topbar');
   const navToggle = document.getElementById('nav-toggle');
@@ -63,11 +99,12 @@
     }
     if (data.hide) return;
 
-    const colors = [
-      '#047857', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316',
-    ];
-    const grid = 'rgba(15, 23, 42, 0.08)';
-    const tick = '#64748b';
+    const isDark = root.getAttribute('data-theme') === 'dark';
+    const colors = isDark
+      ? ['#10b981', '#60a5fa', '#34d399', '#f87171', '#a78bfa', '#22d3ee', '#fb923c']
+      : ['#047857', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
+    const grid = isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(15, 23, 42, 0.08)';
+    const tick = isDark ? '#94a3b8' : '#64748b';
     const base = data.baseUrl || (window.location.pathname.replace(/\/[^/]*$/, '') + '/index.php');
 
     const go = (route, params = {}) => {

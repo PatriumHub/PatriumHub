@@ -231,8 +231,8 @@ $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct
             <div class="panel mt pp-resumen-card">
                 <div class="page-head">
                     <div>
-                        <h2 style="margin:0">Proyección <?= $yearName !== '' ? e($yearName) : '' ?></h2>
-                        <p class="muted" style="margin:0.25rem 0 0">Flujo planificado vs tu patrimonio real</p>
+                        <h2 style="margin:0">Proyección <?= $yearName !== '' ? e($yearName) : (string) date('Y') ?></h2>
+                        <p class="muted" style="margin:0.25rem 0 0">Año en curso · flujo planificado vs tu patrimonio real</p>
                     </div>
                     <a class="btn ghost" href="<?= e(url($personPath . '?tab=proyecciones&currency=' . urlencode($currency))) ?>">Abrir proyecciones</a>
                 </div>

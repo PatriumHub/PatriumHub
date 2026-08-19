@@ -134,6 +134,40 @@ final class PersonFinancialPlanService
     }
 
     /**
+     * Índice de la hoja del año calendario (o la más cercana).
+     *
+     * @param array<string,mixed> $workbook
+     */
+    public static function yearIndexForCalendar(array $workbook, ?int $calendarYear = null): int
+    {
+        $workbook = self::normalizeWorkbook($workbook);
+        $years = $workbook['years'] ?? [];
+        if (!is_array($years) || $years === []) {
+            return 0;
+        }
+        $now = $calendarYear ?? (int) date('Y');
+        $exact = null;
+        $closest = 0;
+        $closestDist = PHP_INT_MAX;
+        foreach ($years as $i => $y) {
+            $n = (int) preg_replace('/\D+/', '', (string) ($y['name'] ?? ''));
+            if ($n < 1900) {
+                continue;
+            }
+            if ($n === $now) {
+                $exact = (int) $i;
+                break;
+            }
+            $dist = abs($n - $now);
+            if ($dist < $closestDist) {
+                $closestDist = $dist;
+                $closest = (int) $i;
+            }
+        }
+        return $exact ?? $closest;
+    }
+
+    /**
      * @param array<string,mixed> $year
      * @return array<string,mixed>
      */
