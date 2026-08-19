@@ -1,10 +1,14 @@
+<?php
+$returnTo = safe_return_path((string) ($returnTo ?? ($_GET['return_to'] ?? '')), '');
+$backUrl = $returnTo !== '' ? $returnTo : ('/cobrables/' . (int) $item['id'] . '/editar');
+?>
 <section class="page">
     <div class="page-head">
         <div>
             <h1>Marcar pago</h1>
             <p class="lede">¿A qué cuenta de <?= e($entity['name'] ?? 'la entidad') ?> sumamos el cobro?</p>
         </div>
-        <a class="btn ghost" href="<?= e(url('/cobrables/' . (int) $item['id'] . '/editar')) ?>">Volver</a>
+        <a class="btn ghost" href="<?= e(url($backUrl)) ?>">Volver</a>
     </div>
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
 
@@ -25,8 +29,9 @@
     <?php else: ?>
         <form method="post" action="<?= e(url('/cobrables/' . (int) $item['id'] . '/pagar')) ?>" class="panel form-grid mt">
             <?= csrf_field() ?>
-            <input type="hidden" name="return_to" value="<?= e((string) ($_GET['return_to'] ?? '')) ?>">
-            <?php /* always send return_to if present in query */ ?>
+            <?php if ($returnTo !== ''): ?>
+                <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
+            <?php endif; ?>
             <label>Cuenta destino *
                 <select name="deposit_account_id" required>
                     <option value="">— elegí —</option>

@@ -5,7 +5,7 @@ App PHP monolítica de patrimonio personal / multiempresa.
 ## Deploy (sin tocar Apache)
 
 1. Copiá esta carpeta a `/var/www/html/patrium` (tiene que haber `index.php` ahí).
-2. Importá **`../databases/patriumhub.sql`** en phpMyAdmin (único archivo de instalación, schema 0.8.6).
+2. Importá **`../databases/patriumhub.sql`** en phpMyAdmin (único archivo de instalación, schema 0.8.7).
 3. `.env`:
 
 ```env

@@ -93,17 +93,36 @@ $statusLabels = $statusLabels ?? [
         </div>
 
         <div class="panel mt">
-            <table class="table">
-                <thead><tr><th>Deudor</th><th>Acreedor</th><th class="num">Pendiente</th><th>Vence</th><th>Estado</th><th></th></tr></thead>
+            <table class="table" id="receivables-table">
+                <thead>
+                <tr>
+                    <th class="th-sort" data-sort="text" data-col="0" scope="col">Deudor <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="text" data-col="1" scope="col">Acreedor <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort num" data-sort="num" data-col="2" scope="col">Pendiente <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="text" data-col="3" scope="col">Vence <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="num" data-col="4" scope="col">Estado <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th></th>
+                </tr>
+                </thead>
                 <tbody>
-                <?php foreach ($rows as $row): ?>
-                    <?php $st = (string) ($row['status'] ?? 'current'); ?>
+                <?php
+                $statusOrder = [
+                    'overdue' => 0,
+                    'current' => 1,
+                    'paid' => 2,
+                    'uncollectible' => 3,
+                    'cancelled' => 4,
+                ];
+                foreach ($rows as $row):
+                    $st = (string) ($row['status'] ?? 'current');
+                    $due = (string) ($row['due_date'] ?? '');
+                    ?>
                     <tr>
-                        <td><?= e($row['debtor_name']) ?></td>
-                        <td><?= e($row['entity_name']) ?></td>
-                        <td class="num"><?= e(money($row['outstanding_amount'], $row['currency_code'])) ?></td>
-                        <td><?= e($row['due_date'] ?? '—') ?></td>
-                        <td><span class="badge"><?= e($statusLabels[$st] ?? $st) ?></span></td>
+                        <td data-sort="<?= e(mb_strtolower((string) $row['debtor_name'])) ?>"><?= e($row['debtor_name']) ?></td>
+                        <td data-sort="<?= e(mb_strtolower((string) $row['entity_name'])) ?>"><?= e($row['entity_name']) ?></td>
+                        <td class="num" data-sort="<?= e((string) (float) $row['outstanding_amount']) ?>"><?= e(money($row['outstanding_amount'], $row['currency_code'])) ?></td>
+                        <td data-sort="<?= e($due !== '' ? $due : '9999-99-99') ?>"><?= e($due !== '' ? $due : '—') ?></td>
+                        <td data-sort="<?= (int) ($statusOrder[$st] ?? 9) ?>"><span class="badge"><?= e($statusLabels[$st] ?? $st) ?></span></td>
                         <td class="actions">
                             <a href="<?= e(url('/cobrables/' . $row['id'] . '/editar')) ?>">Editar</a>
                             <?php if ($st !== 'paid'): ?>
@@ -116,5 +135,44 @@ $statusLabels = $statusLabels ?? [
             </table>
         </div>
         <script type="application/json" id="list-charts"><?= json_encode($chartPayload, JSON_UNESCAPED_UNICODE) ?></script>
+        <script>
+        (() => {
+          const table = document.getElementById('receivables-table');
+          if (!table) return;
+          const tbody = table.tBodies[0];
+          const headers = [...table.querySelectorAll('th.th-sort')];
+          let activeCol = null;
+          let asc = true;
+          const valueOf = (row, col, type) => {
+            const raw = row.cells[col]?.dataset.sort ?? '';
+            if (type === 'num') {
+              const n = Number(raw);
+              return Number.isFinite(n) ? n : 0;
+            }
+            return String(raw);
+          };
+          headers.forEach((th) => {
+            th.style.cursor = 'pointer';
+            th.addEventListener('click', () => {
+              const col = Number(th.dataset.col);
+              const type = th.dataset.sort || 'text';
+              if (activeCol === col) asc = !asc;
+              else { activeCol = col; asc = true; }
+              headers.forEach((h) => h.classList.remove('is-asc', 'is-desc'));
+              th.classList.add(asc ? 'is-asc' : 'is-desc');
+              const rows = [...tbody.rows];
+              rows.sort((a, b) => {
+                const av = valueOf(a, col, type);
+                const bv = valueOf(b, col, type);
+                const cmp = typeof av === 'number' && typeof bv === 'number'
+                  ? av - bv
+                  : String(av).localeCompare(String(bv), 'es', { sensitivity: 'base', numeric: true });
+                return asc ? cmp : -cmp;
+              });
+              rows.forEach((r) => tbody.appendChild(r));
+            });
+          });
+        })();
+        </script>
     <?php endif; ?>
 </section>

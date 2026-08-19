@@ -91,6 +91,22 @@ function redirect(string $path): never
     exit;
 }
 
+/**
+ * Ruta interna segura para return_to / redirect_to (evita open redirect).
+ * Solo acepta paths relativos que empiezan con "/" (no "//").
+ */
+function safe_return_path(string $path, string $fallback = '/'): string
+{
+    $path = trim($path);
+    if ($path === '' || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
+        return $fallback;
+    }
+    if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $path)) {
+        return $fallback;
+    }
+    return $path;
+}
+
 /** Action de formularios GET/POST al front controller. */
 function form_action(): string
 {

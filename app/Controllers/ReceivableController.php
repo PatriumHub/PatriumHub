@@ -85,6 +85,7 @@ final class ReceivableController
         Auth::requireAdminArea();
         ReceivableService::ensurePaidStatus();
         $entityId = request_int('entity_id');
+        $returnTo = self::requestReturnTo();
         view('receivables/form', [
             'title' => 'Nueva cuenta por cobrar',
             'item' => [
@@ -99,6 +100,7 @@ final class ReceivableController
             'currencies' => Catalog::currencies(),
             'accounts' => $entityId ? ReceivableService::accountsForEntity($entityId) : [],
             'statusLabels' => ReceivableService::statusLabels(),
+            'returnTo' => $returnTo,
             'error' => flash('error'),
         ]);
     }
@@ -108,6 +110,7 @@ final class ReceivableController
         Auth::requireAdminArea();
         require_csrf();
         ReceivableService::ensurePaidStatus();
+        $returnTo = self::postedReturnTo();
         $entityId = request_int('entity_id');
         $debtor = post_string('debtor_name');
         $debtorEntityId = request_int('debtor_entity_id');
@@ -118,7 +121,7 @@ final class ReceivableController
         }
         if (!$entityId || $debtor === '') {
             flash('error', 'Entidad acreedora y deudor son obligatorios.');
-            redirect('/cobrables/nueva');
+            redirect(self::pathWithReturn('/cobrables/nueva' . ($entityId ? '?entity_id=' . $entityId : ''), $returnTo));
         }
         $outstanding = post_float('outstanding_amount');
         $originalPosted = post_string('original_amount');
@@ -128,7 +131,7 @@ final class ReceivableController
         $status = post_string('status', 'current');
         if ($status === 'paid') {
             flash('error', 'Para marcar como pago, guardá el cobrable y usá “Cobrar / marcar pago”.');
-            redirect('/cobrables/nueva');
+            redirect(self::pathWithReturn('/cobrables/nueva' . ($entityId ? '?entity_id=' . $entityId : ''), $returnTo));
         }
         Database::pdo()->prepare(
             'INSERT INTO receivables
@@ -153,7 +156,7 @@ final class ReceivableController
         $id = (int) Database::pdo()->lastInsertId();
         AuditService::log('create', 'receivable', $id, 'Alta cobrable: ' . $debtor);
         flash('success', 'Cuenta por cobrar creada.');
-        redirect('/cobrables');
+        redirect($returnTo !== '' ? $returnTo : '/cobrables');
     }
 
     public static function edit(string $id): void
@@ -161,9 +164,10 @@ final class ReceivableController
         Auth::requireAdminArea();
         ReceivableService::ensurePaidStatus();
         $item = self::find((int) $id);
+        $returnTo = self::requestReturnTo();
         if (!$item) {
             flash('error', 'Registro no encontrado.');
-            redirect('/cobrables');
+            redirect($returnTo !== '' ? $returnTo : '/cobrables');
         }
         view('receivables/form', [
             'title' => 'Editar cuenta por cobrar',
@@ -175,6 +179,7 @@ final class ReceivableController
                 (string) ($item['currency_code'] ?? 'ARS')
             ),
             'statusLabels' => ReceivableService::statusLabels(),
+            'returnTo' => $returnTo,
             'error' => flash('error'),
         ]);
     }
@@ -185,10 +190,11 @@ final class ReceivableController
         require_csrf();
         ReceivableService::ensurePaidStatus();
         $recvId = (int) $id;
+        $returnTo = self::postedReturnTo();
         $before = self::find($recvId);
         if (!$before) {
             flash('error', 'Registro no encontrado.');
-            redirect('/cobrables');
+            redirect($returnTo !== '' ? $returnTo : '/cobrables');
         }
 
         $status = post_string('status', 'current');
@@ -196,26 +202,24 @@ final class ReceivableController
             $accountId = request_int('deposit_account_id');
             if (!$accountId) {
                 flash('error', 'Elegí a qué cuenta sumar el cobro.');
-                redirect('/cobrables/' . $recvId . '/editar');
+                redirect(self::pathWithReturn('/cobrables/' . $recvId . '/editar', $returnTo));
             }
             $result = ReceivableService::markPaid($recvId, $accountId);
             if (!$result['ok']) {
                 flash('error', $result['error'] ?? 'No se pudo marcar como pago.');
-                redirect('/cobrables/' . $recvId . '/editar');
+                redirect(self::pathWithReturn('/cobrables/' . $recvId . '/editar', $returnTo));
             }
-            // Still allow updating other fields that might have been posted? markPaid already set status.
             flash('success', 'Marcado como pago y acreditado en la cuenta.');
-            redirect('/cobrables');
+            redirect($returnTo !== '' ? $returnTo : '/cobrables');
         }
 
         $entityId = request_int('entity_id');
         $debtor = post_string('debtor_name');
         if (!$entityId || $debtor === '') {
             flash('error', 'Entidad acreedora y deudor son obligatorios.');
-            redirect('/cobrables/' . $recvId . '/editar');
+            redirect(self::pathWithReturn('/cobrables/' . $recvId . '/editar', $returnTo));
         }
         if ($status === 'paid') {
-            // already paid — don't re-credit; just update metadata
             $status = 'paid';
         }
         Database::pdo()->prepare(
@@ -241,7 +245,7 @@ final class ReceivableController
         ]);
         AuditService::log('update', 'receivable', $recvId, 'Edición cobrable: ' . $debtor, $before, self::find($recvId));
         flash('success', 'Cuenta por cobrar actualizada.');
-        redirect('/cobrables');
+        redirect($returnTo !== '' ? $returnTo : '/cobrables');
     }
 
     public static function payForm(string $id): void
@@ -249,13 +253,14 @@ final class ReceivableController
         Auth::requireAdminArea();
         ReceivableService::ensurePaidStatus();
         $item = self::find((int) $id);
+        $returnTo = self::requestReturnTo();
         if (!$item) {
             flash('error', 'Registro no encontrado.');
-            redirect('/cobrables');
+            redirect($returnTo !== '' ? $returnTo : '/cobrables');
         }
         if (($item['status'] ?? '') === 'paid') {
             flash('error', 'Ya está marcado como pago.');
-            redirect('/cobrables');
+            redirect($returnTo !== '' ? $returnTo : '/cobrables');
         }
         $entity = Catalog::entity((int) $item['entity_id']);
         view('receivables/pay', [
@@ -266,6 +271,7 @@ final class ReceivableController
                 (int) $item['entity_id'],
                 (string) ($item['currency_code'] ?? 'ARS')
             ),
+            'returnTo' => $returnTo,
             'error' => flash('error'),
         ]);
     }
@@ -275,10 +281,11 @@ final class ReceivableController
         Auth::requireAdminArea();
         require_csrf();
         $recvId = (int) $id;
+        $returnTo = self::postedReturnTo();
         $accountId = request_int('deposit_account_id');
         if (!$accountId) {
             flash('error', 'Elegí la cuenta donde sumar el cobro.');
-            redirect('/cobrables/' . $recvId . '/pagar');
+            redirect(self::pathWithReturn('/cobrables/' . $recvId . '/pagar', $returnTo));
         }
         $result = ReceivableService::markPaid(
             $recvId,
@@ -287,11 +294,10 @@ final class ReceivableController
         );
         if (!$result['ok']) {
             flash('error', $result['error'] ?? 'No se pudo registrar el pago.');
-            redirect('/cobrables/' . $recvId . '/pagar');
+            redirect(self::pathWithReturn('/cobrables/' . $recvId . '/pagar', $returnTo));
         }
         flash('success', 'Cobro acreditado en la cuenta.');
-        $back = post_string('return_to');
-        redirect($back !== '' ? $back : '/cobrables');
+        redirect($returnTo !== '' ? $returnTo : '/cobrables');
     }
 
     private static function find(int $id): ?array
@@ -300,5 +306,24 @@ final class ReceivableController
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch();
         return $row ?: null;
+    }
+
+    private static function requestReturnTo(): string
+    {
+        return safe_return_path((string) ($_GET['return_to'] ?? ''), '');
+    }
+
+    private static function postedReturnTo(): string
+    {
+        return safe_return_path(post_string('return_to'), '');
+    }
+
+    private static function pathWithReturn(string $path, string $returnTo): string
+    {
+        if ($returnTo === '') {
+            return $path;
+        }
+        $sep = str_contains($path, '?') ? '&' : '?';
+        return $path . $sep . 'return_to=' . rawurlencode($returnTo);
     }
 }

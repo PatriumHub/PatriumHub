@@ -860,13 +860,14 @@ $net = (float) ($summary['net_worth'] ?? 0);
         <div class="page-head mt">
             <h2><?= e($tabs[$tab] ?? $tab) ?></h2>
             <?php
+            $returnToCobrables = $companyPath . '?tab=cobrables&currency=' . urlencode($currency);
             $newLinks = [
                 'cuentas' => '/cuentas/nueva?entity_id=' . $company['id'],
                 'activos' => '/activos/nuevo?entity_id=' . $company['id'],
                 'pasivos' => '/pasivos/nuevo?entity_id=' . $company['id'],
                 'propiedades' => '/propiedades/nueva?entity_id=' . $company['id'],
                 'inventario' => '/inventario/nuevo?entity_id=' . $company['id'],
-                'cobrables' => '/cobrables/nueva?entity_id=' . $company['id'],
+                'cobrables' => '/cobrables/nueva?entity_id=' . $company['id'] . '&return_to=' . rawurlencode($returnToCobrables),
                 'movimientos' => '/movimientos/nuevo?entity_id=' . $company['id'],
                 'integraciones' => '/integraciones/woocommerce/nueva?entity_id=' . $company['id'],
             ];
@@ -878,7 +879,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
             <?php if (empty($tabRows)): ?>
                 <p class="muted">Sin registros en esta pestaña.</p>
             <?php else: ?>
-                <table class="table">
+                <table class="table"<?= $tab === 'cobrables' ? ' id="entity-cobrables-table"' : '' ?>>
                     <thead>
                     <tr>
                         <?php if ($tab === 'cuentas'): ?><th>Nombre</th><th>Tipo</th><th>Moneda</th><th class="num">Saldo</th><?php endif; ?>
@@ -886,7 +887,13 @@ $net = (float) ($summary['net_worth'] ?? 0);
                         <?php if ($tab === 'pasivos'): ?><th>Nombre</th><th>Tipo</th><th class="num">Saldo</th><th>Estado</th><?php endif; ?>
                         <?php if ($tab === 'propiedades'): ?><th>Nombre</th><th>Tipo</th><th class="num">Valor</th><?php endif; ?>
                         <?php if ($tab === 'inventario'): ?><th>Nombre</th><th>Fuente</th><th class="num">Valor</th><th class="num">Unidades</th><?php endif; ?>
-                        <?php if ($tab === 'cobrables'): ?><th>Deudor</th><th class="num">Pendiente</th><th>Estado</th><?php if ($canWrite): ?><th></th><?php endif; ?><?php endif; ?>
+                        <?php if ($tab === 'cobrables'): ?>
+                            <th class="th-sort" data-sort="text" data-col="0" scope="col">Deudor <span class="sort-ind" aria-hidden="true"></span></th>
+                            <th class="th-sort num" data-sort="num" data-col="1" scope="col">Pendiente <span class="sort-ind" aria-hidden="true"></span></th>
+                            <th class="th-sort" data-sort="text" data-col="2" scope="col">Vence <span class="sort-ind" aria-hidden="true"></span></th>
+                            <th class="th-sort" data-sort="num" data-col="3" scope="col">Estado <span class="sort-ind" aria-hidden="true"></span></th>
+                            <?php if ($canWrite): ?><th></th><?php endif; ?>
+                        <?php endif; ?>
                         <?php if ($tab === 'movimientos'): ?><th>Fecha</th><th>Tipo</th><th>Cuenta</th><th class="num">Importe</th><?php endif; ?>
                         <?php if ($tab === 'integraciones'): ?><th>Nombre</th><th>Proveedor</th><th>Estado</th><th>Última sync</th><?php if ($canWrite): ?><th></th><?php endif; ?><?php endif; ?>
                     </tr>
@@ -928,11 +935,15 @@ $net = (float) ($summary['net_worth'] ?? 0);
                                     'uncollectible' => 'Incobrable',
                                     'cancelled' => 'Cancelado',
                                 ];
-                                $returnTo = $companyPath . '?tab=cobrables&currency=' . urlencode($currency);
+                                $stOrder = ['overdue' => 0, 'current' => 1, 'paid' => 2, 'uncollectible' => 3, 'cancelled' => 4];
+                                $due = (string) ($r['due_date'] ?? '');
+                                $returnTo = $returnToCobrables;
+                                $editHref = '/cobrables/' . $r['id'] . '/editar?return_to=' . rawurlencode($returnTo);
                                 ?>
-                                <td><?php if ($canWrite): ?><a href="<?= e(url('/cobrables/' . $r['id'] . '/editar')) ?>"><?= e($r['debtor_name']) ?></a><?php else: ?><?= e($r['debtor_name']) ?><?php endif; ?></td>
-                                <td class="num"><?= e(money($r['outstanding_amount'], $r['currency_code'])) ?></td>
-                                <td><span class="badge"><?= e($stLabels[$st] ?? $st) ?></span></td>
+                                <td data-sort="<?= e(mb_strtolower((string) $r['debtor_name'])) ?>"><?php if ($canWrite): ?><a href="<?= e(url($editHref)) ?>"><?= e($r['debtor_name']) ?></a><?php else: ?><?= e($r['debtor_name']) ?><?php endif; ?></td>
+                                <td class="num" data-sort="<?= e((string) (float) $r['outstanding_amount']) ?>"><?= e(money($r['outstanding_amount'], $r['currency_code'])) ?></td>
+                                <td data-sort="<?= e($due !== '' ? $due : '9999-99-99') ?>"><?= e($due !== '' ? $due : '—') ?></td>
+                                <td data-sort="<?= (int) ($stOrder[$st] ?? 9) ?>"><span class="badge"><?= e($stLabels[$st] ?? $st) ?></span></td>
                                 <?php if ($canWrite): ?>
                                 <td class="actions">
                                     <?php if ($st !== 'paid'): ?>
@@ -960,6 +971,47 @@ $net = (float) ($summary['net_worth'] ?? 0);
                     <?php endforeach; ?>
                     </tbody>
                 </table>
+                <?php if ($tab === 'cobrables'): ?>
+                <script>
+                (() => {
+                  const table = document.getElementById('entity-cobrables-table');
+                  if (!table) return;
+                  const tbody = table.tBodies[0];
+                  const headers = [...table.querySelectorAll('th.th-sort')];
+                  let activeCol = null;
+                  let asc = true;
+                  const valueOf = (row, col, type) => {
+                    const raw = row.cells[col]?.dataset.sort ?? '';
+                    if (type === 'num') {
+                      const n = Number(raw);
+                      return Number.isFinite(n) ? n : 0;
+                    }
+                    return String(raw);
+                  };
+                  headers.forEach((th) => {
+                    th.style.cursor = 'pointer';
+                    th.addEventListener('click', () => {
+                      const col = Number(th.dataset.col);
+                      const type = th.dataset.sort || 'text';
+                      if (activeCol === col) asc = !asc;
+                      else { activeCol = col; asc = true; }
+                      headers.forEach((h) => h.classList.remove('is-asc', 'is-desc'));
+                      th.classList.add(asc ? 'is-asc' : 'is-desc');
+                      const rows = [...tbody.rows];
+                      rows.sort((a, b) => {
+                        const av = valueOf(a, col, type);
+                        const bv = valueOf(b, col, type);
+                        const cmp = typeof av === 'number' && typeof bv === 'number'
+                          ? av - bv
+                          : String(av).localeCompare(String(bv), 'es', { sensitivity: 'base', numeric: true });
+                        return asc ? cmp : -cmp;
+                      });
+                      rows.forEach((r) => tbody.appendChild(r));
+                    });
+                  });
+                })();
+                </script>
+                <?php endif; ?>
                 <?php if ($tab === 'movimientos' && !empty($pagination)): ?>
                     <?php
                     $pagerRoute = $companyPath;

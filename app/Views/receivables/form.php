@@ -1,5 +1,9 @@
 <section class="page">
-    <div class="page-head"><h1><?= e($title) ?></h1><a class="btn ghost" href="<?= e(url('/cobrables')) ?>">Volver</a></div>
+    <?php
+    $returnTo = safe_return_path((string) ($returnTo ?? ''), '');
+    $backUrl = $returnTo !== '' ? $returnTo : '/cobrables';
+    ?>
+    <div class="page-head"><h1><?= e($title) ?></h1><a class="btn ghost" href="<?= e(url($backUrl)) ?>">Volver</a></div>
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
     <?php
     $i = $item;
@@ -13,9 +17,16 @@
     ];
     $accounts = $accounts ?? [];
     $isPaid = ($i['status'] ?? '') === 'paid';
+    $payHref = '/cobrables/' . (int) ($i['id'] ?? 0) . '/pagar';
+    if ($isEdit && $returnTo !== '') {
+        $payHref .= '?return_to=' . rawurlencode($returnTo);
+    }
     ?>
     <form method="post" action="<?= e(url($isEdit ? '/cobrables/' . $i['id'] : '/cobrables')) ?>" class="panel form-grid" id="recv-form">
         <?= csrf_field() ?>
+        <?php if ($returnTo !== ''): ?>
+            <input type="hidden" name="return_to" value="<?= e($returnTo) ?>">
+        <?php endif; ?>
         <label>Quién cobra (entidad) *
             <select name="entity_id" id="recv-entity" required>
                 <option value="">—</option>
@@ -79,7 +90,7 @@
         <div class="full">
             <button type="submit">Guardar</button>
             <?php if ($isEdit && !$isPaid): ?>
-                <a class="btn ghost" href="<?= e(url('/cobrables/' . (int) $i['id'] . '/pagar')) ?>">Cobrar / marcar pago…</a>
+                <a class="btn ghost" href="<?= e(url($payHref)) ?>">Cobrar / marcar pago…</a>
             <?php endif; ?>
         </div>
     </form>
