@@ -231,6 +231,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 </summary>
                 <div class="fp-fold-body">
                     <div class="fp-toolbar">
+                        <div id="fp-year-tabs" class="fp-sheet-tabs" style="margin:0"></div>
                         <div class="fp-toolbar-actions">
                             <label class="fp-rate-label">Ahorro
                                 <input type="number" id="fp-savings-rate" min="0" max="100" step="0.5" class="fp-rate-input"<?= $canWrite ? '' : ' disabled' ?>> %
@@ -242,7 +243,6 @@ $net = (float) ($summary['net_worth'] ?? 0);
                             <?php endif; ?>
                         </div>
                     </div>
-                    <div id="fp-year-tabs" class="fp-sheet-tabs"></div>
                     <div id="fp-kpis" class="fp-kpis"></div>
 
                     <div id="fp-clients-section" class="<?= $fpIsProducts ? 'is-hidden' : '' ?>">
@@ -345,11 +345,74 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 </div>
             </details>
 
+            <div class="pp-block-burden mt-lg">
+                <div class="cp-block-head">
+                    <div>
+                        <h2>Carga de egresos</h2>
+                        <p class="muted">Egresos y ahorro sobre ingresos; el verde es el disponible neto (ganancia)</p>
+                    </div>
+                </div>
+                <div class="pp-charts pp-charts-burden">
+                    <div class="chart-card pp-burden-total">
+                        <h2>Egresos vs ingresos</h2>
+                        <p class="chart-hint">Total del año activo (tras meta de ahorro)</p>
+                        <div class="burden-total-layout">
+                            <div class="chart-doughnut">
+                                <div class="chart-wrap short"><canvas id="fp-burden-total"></canvas></div>
+                                <div class="chart-doughnut-center">
+                                    <strong id="fp-burden-kpi-value">—</strong>
+                                    <span>egresos</span>
+                                </div>
+                            </div>
+                            <ul class="burden-legend" id="fp-burden-legend" aria-live="polite"></ul>
+                        </div>
+                    </div>
+                    <div class="chart-card pp-burden-months">
+                        <h2>Mes a mes</h2>
+                        <p class="chart-hint">Egresos + ahorro + disponible neto</p>
+                        <div class="chart-wrap short"><canvas id="fp-burden-months"></canvas></div>
+                        <p class="burden-color-key" aria-hidden="true">
+                            <span><i class="swatch is-high"></i> Egresos ≥ 50%</span>
+                            <span><i class="swatch is-low"></i> Egresos &lt; 50%</span>
+                            <span><i class="swatch is-savings"></i> Ahorro</span>
+                            <span><i class="swatch is-rest"></i> Disponible neto</span>
+                        </p>
+                    </div>
+                    <div class="chart-card pp-burden-categories">
+                        <h2>Por categoría</h2>
+                        <p class="chart-hint">Cada egreso como % de los ingresos del año</p>
+                        <div class="chart-wrap tall"><canvas id="fp-burden-categories"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pp-block-daily mt-lg">
+                <div class="cp-block-head">
+                    <div>
+                        <h2>Gasto diario máximo</h2>
+                        <p class="muted">Disponible neto (ganancia) de cada mes ÷ días · referencia = promedio mensual ÷ 30</p>
+                    </div>
+                    <div class="pp-year-kpi is-accent cp-savings-kpi" id="fp-daily-kpi">
+                        <span class="pp-year-kpi-label">Referencia ÷ 30</span>
+                        <strong class="pp-year-kpi-value" id="fp-daily-kpi-value">—</strong>
+                        <span class="pp-year-kpi-hint">Promedio mensual ÷ 30</span>
+                    </div>
+                </div>
+                <div class="pp-daily-month-cards" id="fp-daily-month-cards" aria-live="polite"></div>
+                <div class="pp-charts pp-charts-daily">
+                    <div class="chart-card pp-daily-chart-wide">
+                        <h2>Mes a mes</h2>
+                        <p class="chart-hint">Disponible neto del mes ÷ días · línea = referencia ÷ 30</p>
+                        <div class="chart-wrap short"><canvas id="fp-daily-months"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
             <script type="application/json" id="fp-workbook"><?= json_encode($fpWorkbook, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
             <?php /* Cargar DESPUÉS de Chart.js (defer al final del layout) para que los gráficos monten bien */ ?>
             <script>
             (function () {
-              var src = <?= json_encode(url('/assets/js/financial-plan.js'), JSON_UNESCAPED_SLASHES) ?>;
+              var src = <?= json_encode(url('/assets/js/financial-plan.js') . '?v=' . (int) @filemtime(dirname(__DIR__, 3) . '/assets/js/financial-plan.js'), JSON_UNESCAPED_SLASHES) ?>;
               function loadFp() {
                 if (document.querySelector('script[data-fp-plan]')) return;
                 var s = document.createElement('script');
@@ -357,10 +420,14 @@ $net = (float) ($summary['net_worth'] ?? 0);
                 s.dataset.fpPlan = '1';
                 document.body.appendChild(s);
               }
+              function tryLoad() {
+                if (window.Chart) loadFp();
+                else window.addEventListener('load', loadFp);
+              }
               if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', loadFp);
+                document.addEventListener('DOMContentLoaded', tryLoad);
               } else {
-                loadFp();
+                tryLoad();
               }
             })();
             </script>

@@ -60,7 +60,28 @@
   }
   workbook.template = 'personal';
 
-  let active = clamp(workbook.activeYear || 0, 0, workbook.years.length - 1);
+  function indexForCurrentCalendarYear(years) {
+    const now = new Date().getFullYear();
+    let exact = -1;
+    let closest = 0;
+    let closestDist = Infinity;
+    (years || []).forEach((y, i) => {
+      const n = parseInt(String(y?.name || ''), 10);
+      if (!Number.isFinite(n)) return;
+      if (n === now) exact = i;
+      const dist = Math.abs(n - now);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = i;
+      }
+    });
+    if (exact >= 0) return exact;
+    if ((years || []).length) return closest;
+    return 0;
+  }
+
+  let active = clamp(indexForCurrentCalendarYear(workbook.years), 0, Math.max(0, workbook.years.length - 1));
+  workbook.activeYear = active;
   let dirty = false;
   const charts = {
     flow: null,
@@ -170,13 +191,54 @@
       btn.type = 'button';
       btn.className = 'fp-sheet-tab' + (i === active ? ' is-active' : '');
       btn.textContent = y.name || ('Año ' + (i + 1));
+      btn.title = 'Clic para abrir · doble clic para renombrar';
       btn.addEventListener('click', () => {
         active = i;
         workbook.activeYear = i;
         renderAll();
       });
+      btn.addEventListener('dblclick', (ev) => {
+        ev.preventDefault();
+        if (readOnly) return;
+        const current = String(y.name || '');
+        const next = window.prompt('Nombre del año', current);
+        if (next == null) return;
+        const trimmed = String(next).trim();
+        if (!trimmed || trimmed === current) return;
+        y.name = trimmed;
+        markDirty();
+        renderAll();
+      });
       yearTabs.appendChild(btn);
     });
+  }
+
+  function nextYearLabel() {
+    let max = null;
+    (workbook.years || []).forEach((y) => {
+      const n = parseInt(String(y?.name || ''), 10);
+      if (Number.isFinite(n)) max = max == null ? n : Math.max(max, n);
+    });
+    let next = (max == null ? new Date().getFullYear() : max) + 1;
+    const taken = new Set((workbook.years || []).map((y) => String(y?.name || '')));
+    while (taken.has(String(next))) next += 1;
+    return String(next);
+  }
+
+  function addYearSheet() {
+    if (readOnly) return;
+    const name = nextYearLabel();
+    const prev = workbook.years[workbook.years.length - 1];
+    const sheet = emptyYear(name);
+    if (prev && Number.isFinite(Number(prev.savings_rate))) {
+      sheet.savings_rate = Number(prev.savings_rate);
+    }
+    workbook.years.push(sheet);
+    active = workbook.years.length - 1;
+    workbook.activeYear = active;
+    markDirty();
+    setStatus('Año ' + name + ' agregado · Guardá para persistir', 'warn');
+    renderAll();
   }
 
   function renderRate() {
@@ -970,14 +1032,9 @@
     });
   }
   if (!readOnly && btnAddYear) {
-    btnAddYear.addEventListener('click', () => {
-      const last = workbook.years[workbook.years.length - 1];
-      const n = Number(last?.name) || new Date().getFullYear();
-      workbook.years.push(emptyYear(String(n + 1)));
-      active = workbook.years.length - 1;
-      workbook.activeYear = active;
-      markDirty();
-      renderAll();
+    btnAddYear.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      addYearSheet();
     });
   }
   if (!readOnly && btnSave) btnSave.addEventListener('click', save);
