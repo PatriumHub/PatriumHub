@@ -7,17 +7,25 @@ final class AccountController
     public static function index(): void
     {
         Auth::requireAdminArea();
+        AccountOwnerService::ensureSchema();
         $entityId = request_int('entity_id');
         $currency = trim((string) ($_GET['currency'] ?? 'ARS')) ?: 'ARS';
 
-        $sql = "SELECT a.*, e.name AS entity_name
+        $sql = "SELECT a.*, e.name AS entity_name, e.type AS entity_type
                 FROM accounts a
                 INNER JOIN entities e ON e.id = a.entity_id
                 WHERE a.status = 'active'";
         $params = [];
         if ($entityId) {
-            $sql .= ' AND a.entity_id = :e';
+            $sql .= ' AND (
+                a.entity_id = :e
+                OR EXISTS (
+                    SELECT 1 FROM account_owners ao
+                    WHERE ao.account_id = a.id AND ao.entity_id = :e2
+                )
+            )';
             $params['e'] = $entityId;
+            $params['e2'] = $entityId;
         }
         $sql .= ' ORDER BY e.name, a.name';
         $stmt = Database::pdo()->prepare($sql);
@@ -48,8 +56,17 @@ final class AccountController
         $mpByAccountValues = [];
         $mpByAccountIds = [];
         $mpByEntity = [];
+        $seenForTotal = [];
 
-        foreach ($rows as $row) {
+        foreach ($rows as &$row) {
+            $aid = (int) ($row['id'] ?? 0);
+            $etype = (string) ($row['entity_type'] ?? 'person');
+            $row['owners_label'] = AccountOwnerService::labelForAccount(
+                $aid,
+                (string) ($row['entity_name'] ?? ''),
+                $etype
+            );
+
             if ((string) ($row['currency_code'] ?? '') !== $currency) {
                 continue;
             }
@@ -57,27 +74,78 @@ final class AccountController
                 continue;
             }
             $bal = (float) ($row['balance'] ?? 0);
-            $total += $bal;
+
+            // Totales globales: cada cuenta una vez (salvo filtro por entidad → solo su %).
+            $share = 1.0;
+            if ($entityId && $etype === 'person') {
+                $owners = AccountOwnerService::forAccount($aid);
+                if ($owners !== []) {
+                    $share = 0.0;
+                    foreach ($owners as $ow) {
+                        if ((int) $ow['entity_id'] === $entityId) {
+                            $share = ((float) $ow['ownership_pct']) / 100.0;
+                            break;
+                        }
+                    }
+                }
+            }
+            $shareBal = $bal * $share;
+
+            if (!$entityId) {
+                if (isset($seenForTotal[$aid])) {
+                    continue;
+                }
+                $seenForTotal[$aid] = true;
+            }
+
+            $total += $shareBal;
             $type = (string) ($row['type'] ?? 'other');
             $typeName = $typeLabels[$type] ?? $type;
-            $byType[$typeName] = ($byType[$typeName] ?? 0.0) + $bal;
-            $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
-            $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $bal;
+            $byType[$typeName] = ($byType[$typeName] ?? 0.0) + $shareBal;
+
+            if ($etype === 'person') {
+                $owners = AccountOwnerService::forAccount($aid);
+                if ($owners !== []) {
+                    foreach ($owners as $ow) {
+                        if ($entityId && (int) $ow['entity_id'] !== $entityId) {
+                            continue;
+                        }
+                        $ename = (string) ($ow['name'] ?? 'Sin entidad');
+                        $part = $bal * (((float) $ow['ownership_pct']) / 100.0);
+                        $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $part;
+                        if ($type === 'mercadopago') {
+                            $mpByEntity[$ename] = ($mpByEntity[$ename] ?? 0.0) + $part;
+                        }
+                    }
+                } else {
+                    $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+                    $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $shareBal;
+                    if ($type === 'mercadopago') {
+                        $mpByEntity[$ename] = ($mpByEntity[$ename] ?? 0.0) + $shareBal;
+                    }
+                }
+            } else {
+                $ename = (string) ($row['entity_name'] ?? 'Sin entidad');
+                $byEntity[$ename] = ($byEntity[$ename] ?? 0.0) + $shareBal;
+                if ($type === 'mercadopago') {
+                    $mpByEntity[$ename] = ($mpByEntity[$ename] ?? 0.0) + $shareBal;
+                }
+            }
 
             if (in_array($type, $bankTypes, true)) {
-                $bankTotal += $bal;
+                $bankTotal += $shareBal;
                 $bankCount++;
             }
 
             if ($type === 'mercadopago') {
-                $mpTotal += $bal;
+                $mpTotal += $shareBal;
                 $mpCount++;
                 $mpByAccountLabels[] = (string) ($row['name'] ?? 'MP');
-                $mpByAccountValues[] = $bal;
-                $mpByAccountIds[] = (int) ($row['id'] ?? 0);
-                $mpByEntity[$ename] = ($mpByEntity[$ename] ?? 0.0) + $bal;
+                $mpByAccountValues[] = $shareBal;
+                $mpByAccountIds[] = $aid;
             }
         }
+        unset($row);
 
         arsort($byType);
         arsort($byEntity);
@@ -125,24 +193,34 @@ final class AccountController
     public static function export(): void
     {
         Auth::requireAdminArea();
+        AccountOwnerService::ensureSchema();
         $entityId = request_int('entity_id');
-        $sql = "SELECT e.name AS entity_name, a.name, a.type, a.currency_code, a.balance,
+        $sql = "SELECT e.name AS entity_name, e.type AS entity_type, a.id, a.name, a.type, a.currency_code, a.balance,
                        a.balance_held, a.provider, a.status, a.include_in_net_worth
                 FROM accounts a
                 INNER JOIN entities e ON e.id = a.entity_id
                 WHERE a.status = 'active'";
         $params = [];
         if ($entityId) {
-            $sql .= ' AND a.entity_id = :e';
+            $sql .= ' AND (
+                a.entity_id = :e
+                OR EXISTS (SELECT 1 FROM account_owners ao WHERE ao.account_id = a.id AND ao.entity_id = :e2)
+            )';
             $params['e'] = $entityId;
+            $params['e2'] = $entityId;
         }
         $sql .= ' ORDER BY e.name, a.name';
         $stmt = Database::pdo()->prepare($sql);
         $stmt->execute($params);
         $rows = [];
         foreach ($stmt->fetchAll() as $r) {
+            $label = AccountOwnerService::labelForAccount(
+                (int) $r['id'],
+                (string) $r['entity_name'],
+                (string) ($r['entity_type'] ?? 'person')
+            );
             $rows[] = [
-                $r['entity_name'],
+                $label,
                 $r['name'],
                 $r['type'],
                 $r['currency_code'],
@@ -154,23 +232,25 @@ final class AccountController
             ];
         }
         ExportService::csv('cuentas.csv', [
-            'Entidad', 'Nombre', 'Tipo', 'Moneda', 'Saldo', 'Retenido', 'Proveedor', 'Estado', 'En patrimonio',
+            'Titularidad', 'Nombre', 'Tipo', 'Moneda', 'Saldo', 'Retenido', 'Proveedor', 'Estado', 'En patrimonio',
         ], $rows);
     }
 
     public static function create(): void
     {
         Auth::requireAdminArea();
+        AccountOwnerService::ensureSchema();
         $type = post_string('type') ?: (string) ($_GET['type'] ?? 'bank');
         $allowed = ['bank', 'checking', 'savings', 'wallet', 'mercadopago', 'cash', 'broker', 'virtual', 'other'];
         if (!in_array($type, $allowed, true)) {
             $type = 'bank';
         }
         $title = $type === 'mercadopago' ? 'Nueva cuenta Mercado Pago' : 'Nueva cuenta';
+        $entityId = request_int('entity_id');
         view('accounts/form', [
             'title' => $title,
             'account' => [
-                'entity_id' => request_int('entity_id'),
+                'entity_id' => $entityId,
                 'currency_code' => 'ARS',
                 'type' => $type,
                 'include_in_net_worth' => 1,
@@ -178,6 +258,9 @@ final class AccountController
                 'balance' => 0,
                 'provider' => $type === 'mercadopago' ? 'Mercado Pago' : null,
             ],
+            'owners' => [],
+            'people' => Catalog::entities('person'),
+            'companies' => Catalog::entities('company'),
             'entities' => Catalog::entities(),
             'currencies' => Catalog::currencies(),
             'error' => flash('error'),
@@ -188,10 +271,18 @@ final class AccountController
     {
         Auth::requireAdminArea();
         require_csrf();
-        $entityId = request_int('entity_id');
+        AccountOwnerService::ensureSchema();
+
+        $parsed = self::parseOwnership();
+        if ($parsed === null) {
+            flash('error', 'Definí la titularidad (persona/s o empresa).');
+            redirect('/cuentas/nueva');
+        }
+        [$entityId, $owners, $isCompany] = $parsed;
+
         $name = post_string('name');
-        if (!$entityId || $name === '') {
-            flash('error', 'Entidad y nombre son obligatorios.');
+        if ($name === '') {
+            flash('error', 'El nombre es obligatorio.');
             redirect('/cuentas/nueva');
         }
 
@@ -232,6 +323,11 @@ final class AccountController
                 'balance' => $balance,
                 'held' => post_float('balance_held'),
             ]);
+            if ($isCompany) {
+                AccountOwnerService::clear($id);
+            } else {
+                AccountOwnerService::sync($id, $owners);
+            }
             $pdo->commit();
             AuditService::log('create', 'account', $id, 'Alta cuenta: ' . $name);
             flash('success', 'Cuenta creada.');
@@ -246,6 +342,7 @@ final class AccountController
     public static function edit(string $id): void
     {
         Auth::requireAdminArea();
+        AccountOwnerService::ensureSchema();
         $account = self::find((int) $id);
         if (!$account) {
             flash('error', 'Cuenta no encontrada.');
@@ -254,6 +351,9 @@ final class AccountController
         view('accounts/form', [
             'title' => 'Editar cuenta',
             'account' => $account,
+            'owners' => AccountOwnerService::forAccount((int) $id),
+            'people' => Catalog::entities('person'),
+            'companies' => Catalog::entities('company'),
             'entities' => Catalog::entities(),
             'currencies' => Catalog::currencies(),
             'error' => flash('error'),
@@ -264,6 +364,7 @@ final class AccountController
     {
         Auth::requireAdminArea();
         require_csrf();
+        AccountOwnerService::ensureSchema();
         $accountId = (int) $id;
         $before = self::find($accountId);
         if (!$before) {
@@ -271,11 +372,17 @@ final class AccountController
             redirect('/cuentas');
         }
 
-        $entityId = request_int('entity_id');
+        $parsed = self::parseOwnership();
+        if ($parsed === null) {
+            flash('error', 'Definí la titularidad (persona/s o empresa).');
+            redirect('/cuentas/' . $accountId . '/editar');
+        }
+        [$entityId, $owners, $isCompany] = $parsed;
+
         $name = post_string('name');
         $balance = post_float('balance');
-        if (!$entityId || $name === '') {
-            flash('error', 'Entidad y nombre son obligatorios.');
+        if ($name === '') {
+            flash('error', 'El nombre es obligatorio.');
             redirect('/cuentas/' . $accountId . '/editar');
         }
 
@@ -310,6 +417,12 @@ final class AccountController
                     'balance' => $balance,
                     'held' => post_float('balance_held'),
                 ]);
+            }
+
+            if ($isCompany) {
+                AccountOwnerService::clear($accountId);
+            } else {
+                AccountOwnerService::sync($accountId, $owners);
             }
 
             $pdo->commit();
@@ -350,6 +463,41 @@ final class AccountController
             redirect('/cuentas/' . $accountId . '/editar');
         }
         redirect('/cuentas');
+    }
+
+    /**
+     * @return array{0:int,1:list<array{entity_id:int,ownership_pct:float}>,2:bool}|null
+     */
+    private static function parseOwnership(): ?array
+    {
+        $mode = post_string('owner_mode', 'people');
+        if ($mode === 'company') {
+            $entityId = request_int('company_entity_id') ?: request_int('entity_id');
+            if ($entityId < 1) {
+                return null;
+            }
+            return [$entityId, [], true];
+        }
+
+        $owners = AccountOwnerService::ownersFromPost();
+        if ($owners === null || $owners === []) {
+            // Compat: formulario viejo con entity_id solo.
+            $entityId = request_int('entity_id');
+            if ($entityId < 1) {
+                return null;
+            }
+            $type = Database::pdo()->prepare('SELECT type FROM entities WHERE id = :id LIMIT 1');
+            $type->execute(['id' => $entityId]);
+            $t = (string) ($type->fetchColumn() ?: '');
+            if ($t === 'company') {
+                return [$entityId, [], true];
+            }
+            return [$entityId, [['entity_id' => $entityId, 'ownership_pct' => 100.0]], false];
+        }
+
+        usort($owners, static fn ($a, $b) => $b['ownership_pct'] <=> $a['ownership_pct']);
+        $entityId = (int) $owners[0]['entity_id'];
+        return [$entityId, $owners, false];
     }
 
     private static function find(int $id): ?array

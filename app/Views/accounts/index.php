@@ -164,7 +164,7 @@ $chartPayload = [
                 <thead>
                 <tr>
                     <th class="th-sort" data-sort="text" data-col="0" scope="col">Nombre <span class="sort-ind" aria-hidden="true"></span></th>
-                    <th class="th-sort" data-sort="text" data-col="1" scope="col">Entidad <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="text" data-col="1" scope="col">Titularidad <span class="sort-ind" aria-hidden="true"></span></th>
                     <th class="th-sort" data-sort="text" data-col="2" scope="col">Tipo <span class="sort-ind" aria-hidden="true"></span></th>
                     <th class="th-sort" data-sort="text" data-col="3" scope="col">Moneda <span class="sort-ind" aria-hidden="true"></span></th>
                     <th class="th-sort num" data-sort="num" data-col="4" scope="col">Saldo <span class="sort-ind" aria-hidden="true"></span></th>
@@ -180,7 +180,7 @@ $chartPayload = [
                     ?>
                     <tr>
                         <td data-sort="<?= e(mb_strtolower((string) $row['name'])) ?>"><?= e($row['name']) ?></td>
-                        <td data-sort="<?= e(mb_strtolower((string) $row['entity_name'])) ?>"><?= e($row['entity_name']) ?></td>
+                        <td data-sort="<?= e(mb_strtolower((string) ($row['owners_label'] ?? $row['entity_name'] ?? ''))) ?>"><?= e($row['owners_label'] ?? $row['entity_name'] ?? '') ?></td>
                         <td data-sort="<?= e(mb_strtolower($typeLabel)) ?>">
                             <?= e($typeLabel) ?>
                             <?php if ($type === 'mercadopago'): ?>

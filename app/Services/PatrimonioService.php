@@ -395,19 +395,64 @@ final class PatrimonioService
     /** @param array<int, array> $byEntity @param list<int> $ids */
     private static function accumulateAccounts(array &$byEntity, array $ids, string $currency): void
     {
+        AccountOwnerService::ensureSchema();
         $in = self::placeholders($ids);
-        $sql = "SELECT entity_id, COALESCE(SUM(balance),0) AS total
-                FROM accounts
-                WHERE status = 'active' AND include_in_net_worth = 1
-                  AND currency_code = :cur AND entity_id IN ($in)
-                GROUP BY entity_id";
-        $stmt = Database::pdo()->prepare($sql);
+        $pdo = Database::pdo();
+
+        // Empresas: saldo completo.
+        $sqlCompany = "SELECT a.entity_id, COALESCE(SUM(a.balance),0) AS total
+                FROM accounts a
+                INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'company'
+                WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                  AND a.currency_code = :cur AND a.entity_id IN ($in)
+                GROUP BY a.entity_id";
+        $stmt = $pdo->prepare($sqlCompany);
         $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
         foreach ($stmt->fetchAll() as $r) {
             $id = (int) $r['entity_id'];
             if (isset($byEntity[$id])) {
-                $byEntity[$id]['accounts'] += (float) $r['total'];
-                $byEntity[$id]['liquidity'] += (float) $r['total'];
+                $t = (float) $r['total'];
+                $byEntity[$id]['accounts'] += $t;
+                $byEntity[$id]['liquidity'] += $t;
+            }
+        }
+
+        // Personas con co-titulares.
+        $sqlOwners = "SELECT ao.entity_id,
+                             COALESCE(SUM(a.balance * ao.ownership_pct / 100), 0) AS total
+                FROM account_owners ao
+                INNER JOIN accounts a ON a.id = ao.account_id
+                INNER JOIN entities e ON e.id = ao.entity_id AND e.type = 'person'
+                WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                  AND a.currency_code = :cur AND ao.entity_id IN ($in)
+                GROUP BY ao.entity_id";
+        $stmt = $pdo->prepare($sqlOwners);
+        $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+        foreach ($stmt->fetchAll() as $r) {
+            $id = (int) $r['entity_id'];
+            if (isset($byEntity[$id])) {
+                $t = (float) $r['total'];
+                $byEntity[$id]['accounts'] += $t;
+                $byEntity[$id]['liquidity'] += $t;
+            }
+        }
+
+        // Legacy: cuentas de persona sin filas en account_owners.
+        $sqlLegacy = "SELECT a.entity_id, COALESCE(SUM(a.balance),0) AS total
+                FROM accounts a
+                INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'person'
+                WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                  AND a.currency_code = :cur AND a.entity_id IN ($in)
+                  AND NOT EXISTS (SELECT 1 FROM account_owners ao WHERE ao.account_id = a.id)
+                GROUP BY a.entity_id";
+        $stmt = $pdo->prepare($sqlLegacy);
+        $stmt->execute(self::bindIds($ids, ['cur' => $currency]));
+        foreach ($stmt->fetchAll() as $r) {
+            $id = (int) $r['entity_id'];
+            if (isset($byEntity[$id])) {
+                $t = (float) $r['total'];
+                $byEntity[$id]['accounts'] += $t;
+                $byEntity[$id]['liquidity'] += $t;
             }
         }
     }

@@ -44,6 +44,7 @@ require_once __DIR__ . '/Services/EntityService.php';
 require_once __DIR__ . '/Services/CompanyClientService.php';
 require_once __DIR__ . '/Services/ClientDocumentService.php';
 require_once __DIR__ . '/Services/AssetOwnerService.php';
+require_once __DIR__ . '/Services/AccountOwnerService.php';
 require_once __DIR__ . '/Services/PersonFinancialPlanService.php';
 require_once __DIR__ . '/Services/ProjectionsAggregateService.php';
 

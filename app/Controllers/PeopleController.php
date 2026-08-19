@@ -186,7 +186,18 @@ final class PeopleController
         $data['pagination'] = null;
         $data['tabRows'] = match ($tab) {
             'cuentas' => self::rows(
-                "SELECT * FROM accounts WHERE entity_id = ? AND status = 'active' ORDER BY name",
+                "SELECT a.*
+                 FROM accounts a
+                 WHERE a.status = 'active'
+                   AND (
+                     a.entity_id = ?
+                     OR EXISTS (
+                       SELECT 1 FROM account_owners ao
+                       WHERE ao.account_id = a.id AND ao.entity_id = ?
+                     )
+                   )
+                 ORDER BY a.name",
+                $entityId,
                 $entityId
             ),
             'activos' => self::rows(
@@ -194,7 +205,12 @@ final class PeopleController
                  FROM assets a
                  LEFT JOIN accounts ac ON ac.id = a.account_id
                  WHERE a.entity_id = ?
+                    OR EXISTS (
+                      SELECT 1 FROM asset_owners ao
+                      WHERE ao.asset_id = a.id AND ao.entity_id = ?
+                    )
                  ORDER BY a.name',
+                $entityId,
                 $entityId
             ),
             'pasivos' => self::rows('SELECT * FROM liabilities WHERE entity_id = ? ORDER BY name', $entityId),
@@ -400,10 +416,10 @@ final class PeopleController
     }
 
     /** @return list<array<string,mixed>> */
-    private static function rows(string $sql, int $entityId): array
+    private static function rows(string $sql, int ...$params): array
     {
         $stmt = Database::pdo()->prepare($sql);
-        $stmt->execute([$entityId]);
+        $stmt->execute($params === [] ? [] : $params);
         return $stmt->fetchAll();
     }
 

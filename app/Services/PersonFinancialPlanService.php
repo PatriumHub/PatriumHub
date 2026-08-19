@@ -172,8 +172,8 @@ final class PersonFinancialPlanService
         $avgExpenseM = $expense / 12.0;
         $avgIncomeM = $income / 12.0;
         $avgBalanceM = $balance / 12.0;
+        $avgProfitM = $profit / 12.0;
 
-        $runway = $avgExpenseM > 0.01 ? ($liq / $avgExpenseM) : null;
         $debtCover = $liab > 0.01 ? ($liq / $liab) : null;
         $saveRateReal = $income > 0.01 ? ($balance / $income) : null;
         $incomeVsAssets = $ownAssets > 0.01 ? ($income / $ownAssets) : null;
@@ -196,9 +196,10 @@ final class PersonFinancialPlanService
                 'avg_income_m' => $avgIncomeM,
                 'avg_expense_m' => $avgExpenseM,
                 'avg_balance_m' => $avgBalanceM,
+                'avg_profit_m' => $avgProfitM,
             ],
             'insights' => [
-                'runway_months' => $runway !== null ? round($runway, 1) : null,
+                'monthly_avg' => round($avgProfitM, 2),
                 'debt_cover' => $debtCover !== null ? round($debtCover, 2) : null,
                 'cashflow_rate' => $saveRateReal !== null ? round($saveRateReal * 100, 1) : null,
                 'income_vs_assets' => $incomeVsAssets !== null ? round($incomeVsAssets * 100, 1) : null,

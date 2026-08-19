@@ -253,9 +253,7 @@ $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct
                 <p class="muted" style="margin:0.85rem 0 0">
                     Neto real <?= e(money($pc['real']['net_worth'] ?? 0, $currency)) ?>
                     · Liquidez <?= e(money($pc['real']['liquidity'] ?? 0, $currency)) ?>
-                    <?php if (($pc['insights']['runway_months'] ?? null) !== null): ?>
-                        · Pista ~<?= e((string) $pc['insights']['runway_months']) ?> meses
-                    <?php endif; ?>
+                    · Promedio mensual <?= e(money($pc['insights']['monthly_avg'] ?? (($pc['projected']['profit_annual'] ?? 0) / 12), $currency)) ?>
                 </p>
             </div>
         <?php endif; ?>

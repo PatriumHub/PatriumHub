@@ -216,8 +216,7 @@
     const liq = Number(reality.liquidity) || 0;
     const liab = Number(reality.liabilities) || 0;
     const net = Number(reality.net_worth) || 0;
-    const avgExp = s.expenseAnnual / 12;
-    const runway = avgExp > 0.01 ? (liq / avgExp) : null;
+    const monthlyAvg = s.profitAnnual / 12;
     const cover = liab > 0.01 ? (liq / liab) : null;
     const projectedNet = net + s.profitAnnual;
     const netTone = projectedNet < 0 ? 'pp-tile-rose' : (projectedNet > 0 ? 'pp-tile-mint' : 'pp-tile-slate');
@@ -231,9 +230,9 @@
     );
     bits.push(
       '<div class="pp-tile pp-tile-slate">' +
-        '<span class="pp-tile-label">Meses de pista</span>' +
-        '<strong class="pp-tile-value">' + (runway != null ? runway.toFixed(1) + ' meses' : '—') + '</strong>' +
-        '<span class="pp-tile-hint">Liquidez ÷ gasto mensual proyectado</span>' +
+        '<span class="pp-tile-label">Promedio mensual</span>' +
+        '<strong class="pp-tile-value">' + moneyLabel(monthlyAvg) + '</strong>' +
+        '<span class="pp-tile-hint">Disponible neto anual ÷ 12</span>' +
       '</div>'
     );
     bits.push(

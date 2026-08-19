@@ -38,12 +38,55 @@ final class DashboardAnalyticsService
             $propEntityFilter = ' AND p.entity_id IN (' . $in . ')';
         }
 
-        $add(
-            "SELECT currency_code, COALESCE(SUM(balance),0) AS total FROM accounts
-             WHERE status = 'active' AND include_in_net_worth = 1{$entityFilter}
-             GROUP BY currency_code",
-            $params
-        );
+        AccountOwnerService::ensureSchema();
+        if ($entityIds !== null && $entityIds !== []) {
+            $accParams = [];
+            $ph = [];
+            foreach (array_values($entityIds) as $i => $id) {
+                $key = 'acc' . $i;
+                $ph[] = ':' . $key;
+                $accParams[$key] = (int) $id;
+            }
+            $accIn = implode(',', $ph);
+            $add(
+                "SELECT a.currency_code, COALESCE(SUM(a.balance),0) AS total
+                 FROM accounts a
+                 INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'company'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                   AND a.entity_id IN ($accIn)
+                 GROUP BY a.currency_code",
+                $accParams
+            );
+            $add(
+                "SELECT a.currency_code,
+                        COALESCE(SUM(a.balance * ao.ownership_pct / 100),0) AS total
+                 FROM account_owners ao
+                 INNER JOIN accounts a ON a.id = ao.account_id
+                 INNER JOIN entities e ON e.id = ao.entity_id AND e.type = 'person'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                   AND ao.entity_id IN ($accIn)
+                 GROUP BY a.currency_code",
+                $accParams
+            );
+            $add(
+                "SELECT a.currency_code, COALESCE(SUM(a.balance),0) AS total
+                 FROM accounts a
+                 INNER JOIN entities e ON e.id = a.entity_id AND e.type = 'person'
+                 WHERE a.status = 'active' AND a.include_in_net_worth = 1
+                   AND a.entity_id IN ($accIn)
+                   AND NOT EXISTS (SELECT 1 FROM account_owners x WHERE x.account_id = a.id)
+                 GROUP BY a.currency_code",
+                $accParams
+            );
+        } else {
+            // Consolidado: cada cuenta una sola vez (saldo completo).
+            $add(
+                "SELECT currency_code, COALESCE(SUM(balance),0) AS total FROM accounts
+                 WHERE status = 'active' AND include_in_net_worth = 1
+                 GROUP BY currency_code",
+                []
+            );
+        }
         $add(
             "SELECT a.currency_code, COALESCE(SUM(a.current_value),0) AS total
              FROM assets a

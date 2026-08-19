@@ -83,10 +83,10 @@ $scopeLabels = [
             <strong class="pp-year-kpi-value"><?= e(money($totals['balance_annual'] ?? 0, $currency)) ?></strong>
             <span class="pp-year-kpi-hint">Ingresos − egresos</span>
         </div>
-        <div class="pp-year-kpi is-accent">
-            <span class="pp-year-kpi-label">Disponible neto</span>
-            <strong class="pp-year-kpi-value"><?= e(money($totals['profit_annual'] ?? 0, $currency)) ?></strong>
-            <span class="pp-year-kpi-hint">Balance − ahorro</span>
+        <div class="pp-year-kpi<?= ((float) ($totals['profit_annual'] ?? 0) >= 0) ? ' is-accent' : ' is-danger' ?>">
+            <span class="pp-year-kpi-label">Promedio mensual</span>
+            <strong class="pp-year-kpi-value"><?= e(money(((float) ($totals['profit_annual'] ?? 0)) / 12, $currency)) ?></strong>
+            <span class="pp-year-kpi-hint">Disponible neto anual ÷ 12</span>
         </div>
     </div>
 
