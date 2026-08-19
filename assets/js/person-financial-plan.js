@@ -24,9 +24,15 @@
   const btnAddExpense = document.getElementById('pp-add-expense');
   const btnAddYear = document.getElementById('pp-add-year');
   const flowChart = document.getElementById('pp-flow-chart');
-  const mixChartEl = document.getElementById('pp-mix-chart');
   const cumChartEl = document.getElementById('pp-cum-chart');
   const breakChartEl = document.getElementById('pp-break-chart');
+  const burdenMonthsEl = document.getElementById('pp-burden-months');
+  const burdenTotalEl = document.getElementById('pp-burden-total');
+  const burdenCategoriesEl = document.getElementById('pp-burden-categories');
+  const burdenKpiValue = document.getElementById('pp-burden-kpi-value');
+  const dailyMonthsEl = document.getElementById('pp-daily-months');
+  const dailyKpiValue = document.getElementById('pp-daily-kpi-value');
+  const dailyMonthCards = document.getElementById('pp-daily-month-cards');
   const reality = (() => {
     try {
       return JSON.parse(document.getElementById('pp-reality')?.textContent || '{}');
@@ -56,7 +62,15 @@
 
   let active = clamp(workbook.activeYear || 0, 0, workbook.years.length - 1);
   let dirty = false;
-  const charts = { flow: null, mix: null, cum: null, break: null };
+  const charts = {
+    flow: null,
+    cum: null,
+    break: null,
+    burdenMonths: null,
+    burdenTotal: null,
+    burdenCategories: null,
+    dailyMonths: null,
+  };
 
   function emptyMonths() {
     return Array(12).fill(0);
@@ -94,6 +108,13 @@
   function moneyLabel(v) {
     return currency + ' ' + formatMoney(v);
   }
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
   function formatMoneyDec(v) {
     try {
       return new Intl.NumberFormat('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(v || 0);
@@ -123,7 +144,7 @@
     });
     const rate = Number(y.savings_rate) || 0;
     const balanceM = incomeM.map((v, i) => v - expenseM[i]);
-    const savingsM = balanceM.map((v) => v * rate);
+    const savingsM = balanceM.map((v) => (v > 0 ? v * rate : 0));
     const profitM = balanceM.map((v, i) => v - savingsM[i]);
     const sum = (arr) => arr.reduce((a, b) => a + b, 0);
     return {
@@ -233,6 +254,13 @@
         '<span class="pp-tile-label">Promedio mensual</span>' +
         '<strong class="pp-tile-value">' + moneyLabel(monthlyAvg) + '</strong>' +
         '<span class="pp-tile-hint">Disponible neto anual ÷ 12</span>' +
+      '</div>'
+    );
+    bits.push(
+      '<div class="pp-tile pp-tile-mint">' +
+        '<span class="pp-tile-label">Gasto diario máximo</span>' +
+        '<strong class="pp-tile-value">' + moneyLabel(monthlyAvg / 30) + '</strong>' +
+        '<span class="pp-tile-hint">Resto del mes ÷ días · ref. ÷ 30</span>' +
       '</div>'
     );
     bits.push(
@@ -379,6 +407,14 @@
     }
   }
 
+  function planYearNum() {
+    const n = parseInt(String(year().name || ''), 10);
+    return Number.isFinite(n) && n >= 1900 ? n : new Date().getFullYear();
+  }
+  function daysInMonth(yearNum, monthIndex0) {
+    return new Date(yearNum, monthIndex0 + 1, 0).getDate();
+  }
+
   function lineAnnual(row) {
     return (row.months || []).reduce((a, b) => a + (Number(b) || 0), 0);
   }
@@ -423,47 +459,6 @@
           maintainAspectRatio: false,
           plugins: { legend: { labels: { color: '#475569', boxWidth: 12 } } },
           scales: axisOpts,
-        },
-      });
-    }
-
-    if (mixChartEl) {
-      destroyChart('mix');
-      const income = Math.max(0, s.incomeAnnual);
-      const expense = Math.max(0, s.expenseAnnual);
-      charts.mix = new Chart(mixChartEl, {
-        type: 'doughnut',
-        data: {
-          labels: ['Ingresos', 'Egresos'],
-          datasets: [{
-            data: income + expense > 0 ? [income, expense] : [1],
-            backgroundColor: income + expense > 0
-              ? ['rgba(16, 185, 129, 0.85)', 'rgba(239, 68, 68, 0.75)']
-              : ['rgba(148, 163, 184, 0.35)'],
-            borderWidth: 0,
-            hoverOffset: 4,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          cutout: '62%',
-          plugins: {
-            legend: {
-              position: 'bottom',
-              labels: { color: '#475569', boxWidth: 12, padding: 14 },
-            },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => {
-                  const v = ctx.raw || 0;
-                  const total = income + expense;
-                  const pct = total > 0 ? Math.round((v / total) * 100) : 0;
-                  return ' ' + moneyLabel(v) + ' (' + pct + '%)';
-                },
-              },
-            },
-          },
         },
       });
     }
@@ -545,6 +540,356 @@
             y: {
               ticks: { color: tick, font: { size: 11 } },
               grid: { display: false },
+            },
+          },
+        },
+      });
+    }
+
+    const burdenMonths = s.incomeM.map((inc, i) => {
+      const income = Number(inc) || 0;
+      const expense = Math.max(0, Number(s.expenseM[i]) || 0);
+      const savings = Math.max(0, Number(s.savingsM[i]) || 0);
+      const profit = Number(s.profitM[i]) || 0;
+      if (income <= 0.009) {
+        return { expensePct: 0, savingsPct: 0, restPct: 0, income: 0, expense: 0, savings: 0, rest: 0 };
+      }
+      if (expense >= income - 0.009) {
+        return {
+          expensePct: 100,
+          savingsPct: 0,
+          restPct: 0,
+          income,
+          expense,
+          savings: 0,
+          rest: 0,
+        };
+      }
+      const expensePct = Math.round((expense / income) * 1000) / 10;
+      const savingsPct = Math.round((Math.min(savings, income - expense) / income) * 1000) / 10;
+      const restAmt = Math.max(0, profit);
+      let restPct = Math.round((restAmt / income) * 1000) / 10;
+      const stacked = Math.round((expensePct + savingsPct + restPct) * 10) / 10;
+      if (stacked !== 100) {
+        restPct = Math.round((1000 - expensePct * 10 - savingsPct * 10)) / 10;
+      }
+      return {
+        expensePct,
+        savingsPct: Math.max(0, savingsPct),
+        restPct: Math.max(0, restPct),
+        income,
+        expense,
+        savings,
+        rest: restAmt,
+      };
+    });
+    const annualPct = s.incomeAnnual > 0.009
+      ? Math.round((Math.max(0, s.expenseAnnual) / s.incomeAnnual) * 1000) / 10
+      : null;
+    if (burdenKpiValue) {
+      burdenKpiValue.textContent = annualPct != null ? (annualPct.toLocaleString('es-AR') + '%') : '—';
+    }
+
+    const legendEl = document.getElementById('pp-burden-legend');
+    if (legendEl) {
+      const income = Math.max(0, s.incomeAnnual);
+      const expense = Math.max(0, s.expenseAnnual);
+      const savings = Math.max(0, s.savingsAnnual);
+      const rest = Math.max(0, s.profitAnnual);
+      const savingsPct = income > 0.009 ? Math.round((savings / income) * 1000) / 10 : null;
+      const restPct = income > 0.009 ? Math.round((rest / income) * 1000) / 10 : null;
+      const categoryRows = (y.expenses || [])
+        .map((row, idx) => {
+          const amount = Math.max(0, lineAnnual(row));
+          const name = String(row.name || '').trim() || ('Egreso ' + (idx + 1));
+          const pct = income > 0.009 ? Math.round((amount / income) * 1000) / 10 : 0;
+          return { name, amount, pct };
+        })
+        .filter((c) => c.amount > 0.009)
+        .sort((a, b) => b.pct - a.pct || b.amount - a.amount);
+      let html = '';
+      if (income > 0.009) {
+        html += '<li><span class="burden-swatch is-expense"></span><div><strong>Egresos totales</strong><span>'
+          + moneyLabel(expense) + ' · ' + (annualPct ?? 0).toLocaleString('es-AR') + '%</span></div></li>';
+        categoryRows.forEach((c) => {
+          html += '<li><span class="burden-swatch is-out"></span><div><strong>'
+            + escapeHtml(c.name) + '</strong><span>'
+            + moneyLabel(c.amount) + ' · ' + c.pct.toLocaleString('es-AR') + '% del ingreso</span></div></li>';
+        });
+        html += '<li><span class="burden-swatch is-savings"></span><div><strong>Ahorro proyectado</strong><span>'
+          + moneyLabel(savings) + (savingsPct != null ? ' · ' + savingsPct.toLocaleString('es-AR') + '%' : '')
+          + '</span></div></li>';
+        html += '<li><span class="burden-swatch is-rest"></span><div><strong>Disponible neto</strong><span>'
+          + moneyLabel(rest) + (restPct != null ? ' · ' + restPct.toLocaleString('es-AR') + '%' : '')
+          + '</span></div></li>';
+      } else {
+        html = '<li><div><strong>Sin ingresos</strong><span>Cargá ingresos en la planilla</span></div></li>';
+      }
+      legendEl.innerHTML = html;
+    }
+
+    if (burdenMonthsEl) {
+      destroyChart('burdenMonths');
+      const expenseColors = burdenMonths.map((m) => (m.expensePct >= 50 ? '#ef4444' : '#94a3b8'));
+      charts.burdenMonths = new Chart(burdenMonthsEl, {
+        type: 'bar',
+        data: {
+          labels: MONTHS,
+          datasets: [
+            {
+              label: 'Egresos',
+              data: burdenMonths.map((m) => m.expensePct),
+              backgroundColor: expenseColors,
+              borderRadius: 4,
+              stack: 'burden',
+              barPercentage: 0.78,
+              categoryPercentage: 0.82,
+            },
+            {
+              label: 'Ahorro',
+              data: burdenMonths.map((m) => m.savingsPct),
+              backgroundColor: '#0ea5e9',
+              borderRadius: 4,
+              stack: 'burden',
+              barPercentage: 0.78,
+              categoryPercentage: 0.82,
+            },
+            {
+              label: 'Disponible neto',
+              data: burdenMonths.map((m) => m.restPct),
+              backgroundColor: '#10b981',
+              borderRadius: 4,
+              stack: 'burden',
+              barPercentage: 0.78,
+              categoryPercentage: 0.82,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const i = ctx.dataIndex;
+                  const m = burdenMonths[i];
+                  if (!m || m.income <= 0.009) return ' Sin ingresos este mes';
+                  const idx = ctx.datasetIndex;
+                  const pct = idx === 0 ? m.expensePct : (idx === 1 ? m.savingsPct : m.restPct);
+                  const amt = idx === 0 ? m.expense : (idx === 1 ? m.savings : m.rest);
+                  return ' ' + ctx.dataset.label + ': ' + moneyLabel(amt) + ' (' + pct.toLocaleString('es-AR') + '%)';
+                },
+              },
+            },
+          },
+          scales: {
+            x: { stacked: true, ticks: { color: tick }, grid: { display: false } },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              max: 100,
+              ticks: { color: tick, callback: (v) => v + '%' },
+              grid: { color: grid },
+            },
+          },
+        },
+      });
+    }
+
+    if (burdenTotalEl) {
+      destroyChart('burdenTotal');
+      const income = Math.max(0, s.incomeAnnual);
+      const expense = Math.max(0, s.expenseAnnual);
+      const savings = Math.max(0, s.savingsAnnual);
+      const rest = Math.max(0, s.profitAnnual);
+      charts.burdenTotal = new Chart(burdenTotalEl, {
+        type: 'doughnut',
+        data: {
+          labels: income > 0.009 ? ['Egresos', 'Ahorro', 'Disponible neto'] : ['Sin ingresos'],
+          datasets: [{
+            data: income > 0.009 ? [expense, savings, rest] : [1],
+            backgroundColor: income > 0.009
+              ? ['#334155', '#0ea5e9', '#10b981']
+              : ['rgba(148, 163, 184, 0.35)'],
+            hoverBackgroundColor: income > 0.009
+              ? ['#1e293b', '#0284c7', '#059669']
+              : ['rgba(148, 163, 184, 0.45)'],
+            borderWidth: 0,
+            spacing: income > 0.009 ? 2 : 0,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '72%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => (items[0] && items[0].label) || '',
+                label: (ctx) => {
+                  if (income <= 0.009) return ' Sin ingresos cargados';
+                  const v = Number(ctx.raw) || 0;
+                  const pct = Math.round((v / income) * 1000) / 10;
+                  return ' ' + moneyLabel(v) + ' · ' + pct.toLocaleString('es-AR') + '%';
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    if (burdenCategoriesEl) {
+      destroyChart('burdenCategories');
+      const income = Math.max(0, s.incomeAnnual);
+      const catPalette = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b', '#0f766e'];
+      const categories = (y.expenses || [])
+        .map((row, idx) => {
+          const amount = Math.max(0, lineAnnual(row));
+          const name = String(row.name || '').trim() || ('Egreso ' + (idx + 1));
+          const pct = income > 0.009 ? Math.round((amount / income) * 1000) / 10 : 0;
+          return { name, amount, pct };
+        })
+        .filter((c) => c.amount > 0.009)
+        .sort((a, b) => b.pct - a.pct || b.amount - a.amount);
+
+      const wrap = burdenCategoriesEl.parentElement;
+      if (wrap) {
+        wrap.style.height = Math.max(220, 56 + Math.max(categories.length, 1) * 38) + 'px';
+      }
+
+      charts.burdenCategories = new Chart(burdenCategoriesEl, {
+        type: 'bar',
+        data: {
+          labels: categories.length ? categories.map((c) => c.name) : ['Sin egresos'],
+          datasets: [{
+            label: '% del ingreso',
+            data: categories.length ? categories.map((c) => c.pct) : [0],
+            backgroundColor: categories.length
+              ? categories.map((_, i) => catPalette[i % catPalette.length])
+              : ['#cbd5e1'],
+            borderRadius: 5,
+            barPercentage: 0.7,
+            categoryPercentage: 0.78,
+          }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const i = ctx.dataIndex;
+                  const c = categories[i];
+                  if (!c) return ' Sin egresos cargados';
+                  return ' ' + moneyLabel(c.amount) + ' · ' + c.pct.toLocaleString('es-AR') + '% del ingreso';
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              beginAtZero: true,
+              suggestedMax: categories.length
+                ? Math.min(100, Math.max(10, Math.ceil((categories[0].pct * 1.2) / 5) * 5))
+                : 100,
+              ticks: { color: tick, callback: (v) => v + '%' },
+              grid: { color: grid },
+            },
+            y: {
+              ticks: { color: tick },
+              grid: { display: false },
+            },
+          },
+        },
+      });
+    }
+
+    const monthlyAvg = s.profitAnnual / 12;
+    const dailyRef = monthlyAvg / 30;
+    const yNum = planYearNum();
+    const daysPerMonth = MONTHS.map((_, i) => daysInMonth(yNum, i));
+    const dailyByMonth = daysPerMonth.map((d, i) => {
+      // Disponible neto del mes = balance − ahorro (ya en profitM).
+      const resto = Number(s.profitM[i]) || 0;
+      return d > 0 ? Math.round((resto / d) * 100) / 100 : 0;
+    });
+    if (dailyKpiValue) {
+      dailyKpiValue.textContent = moneyLabel(dailyRef);
+    }
+    if (dailyMonthCards) {
+      dailyMonthCards.innerHTML = MONTHS.map((label, i) => {
+        const days = daysPerMonth[i];
+        const val = dailyByMonth[i];
+        const neg = val < 0 ? ' is-neg' : '';
+        return '<div class="pp-daily-month-card' + neg + '">'
+          + '<span class="pp-daily-month-name">' + label + '</span>'
+          + '<strong class="pp-daily-month-value">' + moneyLabel(val) + '</strong>'
+          + '<span class="pp-daily-month-hint">' + days + ' días</span>'
+          + '</div>';
+      }).join('');
+    }
+
+    if (dailyMonthsEl) {
+      destroyChart('dailyMonths');
+      const avgLine = MONTHS.map(() => Math.round(dailyRef * 100) / 100);
+      charts.dailyMonths = new Chart(dailyMonthsEl, {
+        type: 'bar',
+        data: {
+          labels: MONTHS,
+          datasets: [
+            {
+              label: 'Disponible diario del mes',
+              data: dailyByMonth,
+              backgroundColor: dailyByMonth.map((v) => (v < 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(16, 185, 129, 0.75)')),
+              borderRadius: 4,
+              barPercentage: 0.75,
+              categoryPercentage: 0.82,
+              order: 2,
+            },
+            {
+              label: 'Referencia ÷ 30',
+              data: avgLine,
+              type: 'line',
+              borderColor: '#047857',
+              backgroundColor: 'transparent',
+              borderWidth: 2,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              tension: 0,
+              order: 1,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#475569', boxWidth: 10, font: { size: 11 } },
+            },
+            tooltip: {
+              callbacks: {
+                afterTitle: (items) => {
+                  const i = items[0] && items[0].dataIndex;
+                  return i != null ? daysPerMonth[i] + ' días' : '';
+                },
+                label: (ctx) => ' ' + ctx.dataset.label + ': ' + moneyLabel(ctx.raw || 0),
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { color: tick }, grid: { display: false } },
+            y: {
+              ticks: { color: tick, callback: chartTick },
+              grid: { color: grid },
             },
           },
         },

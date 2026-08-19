@@ -108,6 +108,32 @@ final class ProjectionsAggregateService
             $savingsCum[] = $running;
         }
 
+        $burdenMonths = [];
+        for ($i = 0; $i < 12; $i++) {
+            $inc = (float) ($totals['income_months'][$i] ?? 0);
+            $exp = max(0.0, (float) ($totals['expense_months'][$i] ?? 0));
+            $burdenMonths[] = $inc > 0.009 ? round(($exp / $inc) * 1000) / 10 : 0.0;
+        }
+        $incomeAnnual = (float) ($totals['income_annual'] ?? 0);
+        $expenseAnnual = max(0.0, (float) ($totals['expense_annual'] ?? 0));
+        $burdenAnnual = $incomeAnnual > 0.009
+            ? round(($expenseAnnual / $incomeAnnual) * 1000) / 10
+            : null;
+
+        $burdenByEntity = [];
+        foreach ($withData as $r) {
+            $ei = (float) ($r['stats']['income_annual'] ?? 0);
+            $ee = max(0.0, (float) ($r['stats']['expense_annual'] ?? 0));
+            $burdenByEntity[] = $ei > 0.009 ? round(($ee / $ei) * 1000) / 10 : 0.0;
+        }
+
+        $peopleBurden = $peopleIncome > 0.009
+            ? round((max(0.0, $peopleExpense) / $peopleIncome) * 1000) / 10
+            : 0.0;
+        $companyBurden = $companyIncome > 0.009
+            ? round((max(0.0, $companyExpense) / $companyIncome) * 1000) / 10
+            : 0.0;
+
         return [
             'year' => $selected,
             'years' => $yearNames,
@@ -127,6 +153,7 @@ final class ProjectionsAggregateService
                 'income_months' => $totals['income_months'],
                 'expense_months' => $totals['expense_months'],
                 'balance_months' => $totals['balance_months'],
+                'profit_months' => $totals['profit_months'],
                 'savings_months' => $savingsMonths,
                 'savings_cum' => $savingsCum,
                 'by_entity' => [
@@ -135,12 +162,13 @@ final class ProjectionsAggregateService
                     'expense' => $byEntityExpense,
                     'balance' => $byEntityBalance,
                     'savings' => $byEntitySavings,
+                    'burden_pct' => $burdenByEntity,
                 ],
                 'mix' => [
                     'labels' => ['Ingresos', 'Egresos'],
                     'values' => [
-                        max(0.0, (float) $totals['income_annual']),
-                        max(0.0, (float) $totals['expense_annual']),
+                        max(0.0, $incomeAnnual),
+                        max(0.0, $expenseAnnual),
                     ],
                 ],
                 'savings_mix' => [
@@ -152,6 +180,17 @@ final class ProjectionsAggregateService
                     'income' => [$peopleIncome, $companyIncome],
                     'expense' => [$peopleExpense, $companyExpense],
                     'savings' => [$peopleSavings, $companySavings],
+                    'burden_pct' => [$peopleBurden, $companyBurden],
+                ],
+                'burden_months' => $burdenMonths,
+                'burden_annual' => $burdenAnnual,
+                'burden_total' => [
+                    'expense' => $expenseAnnual,
+                    'savings' => max(0.0, (float) ($totals['savings_annual'] ?? 0)),
+                    // Disponible neto = ingresos − egresos − ahorro (no el balance bruto).
+                    'rest' => max(0.0, (float) ($totals['profit_annual'] ?? 0)),
+                    'income' => $incomeAnnual,
+                    'pct' => $burdenAnnual,
                 ],
             ],
         ];

@@ -247,6 +247,18 @@ $modeLede = match (true) {
         <?php endif; ?>
     </div>
 
+    <?php
+    if ($focusLiquidity) {
+        $items = [
+            ['label' => 'Liquidez / activos', 'value' => (float) ($summary['liquidity'] ?? 0), 'tone' => $liqTone],
+            ['label' => 'Neto / activos', 'value' => (float) ($summary['net_worth'] ?? 0), 'tone' => 'accent'],
+            ['label' => 'Resto / activos', 'value' => max(0.0, (float) ($summary['net_worth'] ?? 0) - (float) ($summary['liquidity'] ?? 0)), 'tone' => 'tone-blue'],
+            ['label' => 'Pasivos / activos', 'value' => (float) ($summary['liabilities'] ?? 0), 'tone' => 'tone-rose'],
+        ];
+    }
+    require __DIR__ . '/../partials/stat_pct_of_assets.php';
+    ?>
+
     <div class="charts-grid">
         <?php if ($focusLiquidity): ?>
             <div class="chart-card accent-border">

@@ -360,12 +360,7 @@ $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct
                 <div class="chart-card pp-chart-flow">
                     <h2>Flujo del año</h2>
                     <p class="chart-hint">Ingresos, egresos y balance mes a mes</p>
-                    <div class="chart-wrap tall"><canvas id="pp-flow-chart"></canvas></div>
-                </div>
-                <div class="chart-card pp-chart-mix">
-                    <h2>Composición</h2>
-                    <p class="chart-hint">Ingresos vs egresos del año</p>
-                    <div class="chart-wrap short"><canvas id="pp-mix-chart"></canvas></div>
+                    <div class="chart-wrap flow-xl"><canvas id="pp-flow-chart"></canvas></div>
                 </div>
                 <div class="chart-card pp-chart-cum">
                     <h2>Acumulado</h2>
@@ -449,6 +444,69 @@ $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct
                         Último guardado: <?= e((string) $pp['updated_at']) ?>
                     <?php endif; ?>
                 </p>
+            </div>
+
+            <div class="pp-block-burden mt-lg">
+                <div class="cp-block-head">
+                    <div>
+                        <h2>Carga de egresos</h2>
+                        <p class="muted">Egresos y ahorro sobre ingresos; el verde es el disponible neto</p>
+                    </div>
+                </div>
+                <div class="pp-charts pp-charts-burden">
+                    <div class="chart-card pp-burden-total">
+                        <h2>Egresos vs ingresos</h2>
+                        <p class="chart-hint">Total del año (tras meta de ahorro)</p>
+                        <div class="burden-total-layout">
+                            <div class="chart-doughnut">
+                                <div class="chart-wrap short"><canvas id="pp-burden-total"></canvas></div>
+                                <div class="chart-doughnut-center" id="pp-burden-kpi">
+                                    <strong id="pp-burden-kpi-value">—</strong>
+                                    <span>egresos</span>
+                                </div>
+                            </div>
+                            <ul class="burden-legend" id="pp-burden-legend" aria-live="polite"></ul>
+                        </div>
+                    </div>
+                    <div class="chart-card pp-burden-months">
+                        <h2>Mes a mes</h2>
+                        <p class="chart-hint">Egresos + ahorro + disponible neto</p>
+                        <div class="chart-wrap short"><canvas id="pp-burden-months"></canvas></div>
+                        <p class="burden-color-key" aria-hidden="true">
+                            <span><i class="swatch is-high"></i> Egresos ≥ 50%</span>
+                            <span><i class="swatch is-low"></i> Egresos &lt; 50%</span>
+                            <span><i class="swatch is-savings"></i> Ahorro</span>
+                            <span><i class="swatch is-rest"></i> Disponible neto</span>
+                        </p>
+                    </div>
+                    <div class="chart-card pp-burden-categories">
+                        <h2>Por categoría</h2>
+                        <p class="chart-hint">Cada egreso como % de los ingresos del año</p>
+                        <div class="chart-wrap tall"><canvas id="pp-burden-categories"></canvas></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pp-block-daily mt-lg">
+                <div class="cp-block-head">
+                    <div>
+                        <h2>Gasto diario máximo</h2>
+                        <p class="muted">Disponible neto de cada mes (tras ahorro) ÷ días · referencia = promedio mensual ÷ 30</p>
+                    </div>
+                    <div class="pp-year-kpi is-accent cp-savings-kpi" id="pp-daily-kpi">
+                        <span class="pp-year-kpi-label">Referencia ÷ 30</span>
+                        <strong class="pp-year-kpi-value" id="pp-daily-kpi-value">—</strong>
+                        <span class="pp-year-kpi-hint">Promedio mensual ÷ 30</span>
+                    </div>
+                </div>
+                <div class="pp-daily-month-cards" id="pp-daily-month-cards" aria-live="polite"></div>
+                <div class="pp-charts pp-charts-daily">
+                    <div class="chart-card pp-daily-chart-wide">
+                        <h2>Mes a mes</h2>
+                        <p class="chart-hint">Disponible neto del mes ÷ días · línea = referencia ÷ 30</p>
+                        <div class="chart-wrap short"><canvas id="pp-daily-months"></canvas></div>
+                    </div>
+                </div>
             </div>
         </div>
         <script type="application/json" id="pp-workbook"><?= json_encode($pp['workbook'] ?? [], JSON_UNESCAPED_UNICODE) ?></script>

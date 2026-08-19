@@ -16,6 +16,9 @@ $chartPayload = [
     'currency' => $currency,
     'hide' => $hide,
     'charts' => $agg['charts'] ?? [],
+    'profit_annual' => (float) ($totals['profit_annual'] ?? 0),
+    'expense_annual' => (float) ($totals['expense_annual'] ?? 0),
+    'year' => (int) $year,
 ];
 $scopeLabels = [
     'all' => 'Todas',
@@ -121,20 +124,11 @@ $scopeLabels = [
         <div class="pp-charts cp-charts">
             <div class="chart-card pp-chart-flow">
                 <h2>Flujo consolidado</h2>
-                <p class="chart-hint">Mes a mes</p>
+                <p class="chart-hint">Ingresos, egresos y balance mes a mes</p>
                 <?php if ($hide): ?>
                     <div class="chart-empty">Cifras ocultas</div>
                 <?php else: ?>
-                    <div class="chart-wrap tall"><canvas id="cp-flow-chart"></canvas></div>
-                <?php endif; ?>
-            </div>
-            <div class="chart-card pp-chart-mix">
-                <h2>Composición</h2>
-                <p class="chart-hint">Ingresos vs egresos</p>
-                <?php if ($hide): ?>
-                    <div class="chart-empty">Cifras ocultas</div>
-                <?php else: ?>
-                    <div class="chart-wrap short"><canvas id="cp-mix-chart"></canvas></div>
+                    <div class="chart-wrap flow-xl"><canvas id="cp-flow-chart"></canvas></div>
                 <?php endif; ?>
             </div>
             <div class="chart-card pp-chart-cum">
@@ -282,6 +276,160 @@ $scopeLabels = [
                     </table>
                 </div>
             <?php endif; ?>
+        </div>
+    </div>
+
+    <?php
+    $burdenAnnual = $agg['charts']['burden_annual'] ?? null;
+    $burdenPctLabel = $burdenAnnual !== null
+        ? number_format((float) $burdenAnnual, 1, ',', '.') . '%'
+        : '—';
+    $burdenTotal = $agg['charts']['burden_total'] ?? [];
+    $burdenIncome = (float) ($burdenTotal['income'] ?? 0);
+    $burdenExpense = (float) ($burdenTotal['expense'] ?? 0);
+    $burdenSavings = (float) ($burdenTotal['savings'] ?? max(0, (float) ($totals['savings_annual'] ?? 0)));
+    $burdenRest = (float) ($burdenTotal['rest'] ?? max(0, (float) ($totals['profit_annual'] ?? 0)));
+    $burdenSavingsPct = $burdenIncome > 0.009
+        ? round(($burdenSavings / $burdenIncome) * 1000) / 10
+        : null;
+    $burdenRestPct = $burdenIncome > 0.009
+        ? round(($burdenRest / $burdenIncome) * 1000) / 10
+        : null;
+    ?>
+    <div class="cp-block-burden mt-lg">
+        <div class="cp-block-head">
+            <div>
+                <h2>Carga de egresos</h2>
+                <p class="muted">Egresos y ahorro sobre ingresos; el verde es el disponible neto</p>
+            </div>
+        </div>
+        <div class="pp-charts cp-charts-burden">
+            <div class="chart-card cp-burden-total">
+                <h2>Egresos vs ingresos</h2>
+                <p class="chart-hint">Total del año (tras meta de ahorro)</p>
+                <?php if ($hide): ?>
+                    <div class="chart-empty">Cifras ocultas</div>
+                <?php else: ?>
+                    <div class="burden-total-layout">
+                        <div class="chart-doughnut">
+                            <div class="chart-wrap short"><canvas id="cp-burden-total"></canvas></div>
+                            <div class="chart-doughnut-center">
+                                <strong><?= e($burdenPctLabel) ?></strong>
+                                <span>egresos</span>
+                            </div>
+                        </div>
+                        <ul class="burden-legend">
+                            <li>
+                                <span class="burden-swatch is-expense"></span>
+                                <div>
+                                    <strong>Egresos</strong>
+                                    <span><?= e(money($burdenExpense, $currency)) ?> · <?= e($burdenPctLabel) ?></span>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="burden-swatch is-savings"></span>
+                                <div>
+                                    <strong>Ahorro proyectado</strong>
+                                    <span><?= e(money($burdenSavings, $currency)) ?><?= $burdenSavingsPct !== null ? ' · ' . e(number_format($burdenSavingsPct, 1, ',', '.')) . '%' : '' ?></span>
+                                </div>
+                            </li>
+                            <li>
+                                <span class="burden-swatch is-rest"></span>
+                                <div>
+                                    <strong>Disponible neto</strong>
+                                    <span><?= e(money($burdenRest, $currency)) ?><?= $burdenRestPct !== null ? ' · ' . e(number_format($burdenRestPct, 1, ',', '.')) . '%' : '' ?></span>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                <?php endif; ?>
+            </div>
+            <div class="chart-card cp-burden-months">
+                <h2>Mes a mes</h2>
+                <p class="chart-hint">Egresos + ahorro + disponible neto</p>
+                <?php if ($hide): ?>
+                    <div class="chart-empty">Cifras ocultas</div>
+                <?php else: ?>
+                    <div class="chart-wrap short"><canvas id="cp-burden-months"></canvas></div>
+                    <p class="burden-color-key" aria-hidden="true">
+                        <span><i class="swatch is-high"></i> Egresos ≥ 50%</span>
+                        <span><i class="swatch is-low"></i> Egresos &lt; 50%</span>
+                        <span><i class="swatch is-savings"></i> Ahorro</span>
+                        <span><i class="swatch is-rest"></i> Disponible neto</span>
+                    </p>
+                <?php endif; ?>
+            </div>
+            <div class="chart-card cp-burden-entity">
+                <h2>Por entidad</h2>
+                <p class="chart-hint">De mayor a menor carga</p>
+                <?php if ($hide): ?>
+                    <div class="chart-empty">Cifras ocultas</div>
+                <?php else: ?>
+                    <div class="chart-wrap tall"><canvas id="cp-burden-entity"></canvas></div>
+                <?php endif; ?>
+            </div>
+            <div class="chart-card cp-burden-groups">
+                <h2>Personas vs empresas</h2>
+                <p class="chart-hint">Carga relativa por grupo</p>
+                <?php if ($hide): ?>
+                    <div class="chart-empty">Cifras ocultas</div>
+                <?php else: ?>
+                    <div class="chart-wrap short"><canvas id="cp-burden-groups"></canvas></div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <?php
+    $monthlyAvg = ((float) ($totals['profit_annual'] ?? 0)) / 12;
+    $dailyRef = $monthlyAvg / 30;
+    $planYear = (int) $year;
+    if ($planYear < 1900) {
+        $planYear = (int) date('Y');
+    }
+    $monthLabels = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    ?>
+    <div class="cp-block-daily mt-lg">
+        <div class="cp-block-head">
+            <div>
+                <h2>Gasto diario máximo</h2>
+                <p class="muted">Disponible neto de cada mes (tras ahorro) ÷ días · referencia = promedio mensual ÷ 30</p>
+            </div>
+            <div class="pp-year-kpi is-accent cp-savings-kpi">
+                <span class="pp-year-kpi-label">Referencia ÷ 30</span>
+                <strong class="pp-year-kpi-value"><?= e(money($dailyRef, $currency)) ?></strong>
+                <span class="pp-year-kpi-hint">Promedio mensual ÷ 30</span>
+            </div>
+        </div>
+        <?php if ($hide): ?>
+            <div class="chart-empty">Cifras ocultas</div>
+        <?php else:
+            $profitMonths = $totals['profit_months'] ?? array_fill(0, 12, 0.0);
+            ?>
+            <div class="pp-daily-month-cards">
+                <?php for ($m = 1; $m <= 12; $m++):
+                    $days = (int) cal_days_in_month(CAL_GREGORIAN, $m, $planYear);
+                    $resto = (float) ($profitMonths[$m - 1] ?? 0);
+                    $daily = $days > 0 ? $resto / $days : 0.0;
+                    ?>
+                    <div class="pp-daily-month-card<?= $daily < 0 ? ' is-neg' : '' ?>">
+                        <span class="pp-daily-month-name"><?= e($monthLabels[$m - 1]) ?></span>
+                        <strong class="pp-daily-month-value"><?= e(money($daily, $currency)) ?></strong>
+                        <span class="pp-daily-month-hint"><?= (int) $days ?> días</span>
+                    </div>
+                <?php endfor; ?>
+            </div>
+        <?php endif; ?>
+        <div class="pp-charts pp-charts-daily">
+            <div class="chart-card pp-daily-chart-wide">
+                <h2>Mes a mes</h2>
+                <p class="chart-hint">Disponible neto del mes ÷ días · línea = referencia ÷ 30</p>
+                <?php if ($hide): ?>
+                    <div class="chart-empty">Cifras ocultas</div>
+                <?php else: ?>
+                    <div class="chart-wrap short"><canvas id="cp-daily-months"></canvas></div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 </section>

@@ -45,6 +45,8 @@
         </div>
     </div>
 
+    <?php require __DIR__ . '/../partials/stat_pct_of_assets.php'; ?>
+
     <div class="grid-2">
         <div class="panel">
             <h2>Composición</h2>

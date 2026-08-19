@@ -158,7 +158,7 @@
       for (let i = 0; i < 12; i++) expenseM[i] += Number(line.months[i]) || 0;
     });
     const balanceM = incomeM.map((v, i) => v - expenseM[i]);
-    const savingsM = balanceM.map((v) => v * rate);
+    const savingsM = balanceM.map((v) => (v > 0 ? v * rate : 0));
     const profitM = balanceM.map((v, i) => v - savingsM[i]);
     const monthsWithIncome = incomeM.filter((v) => v > 0).length;
     return {

@@ -350,7 +350,8 @@ final class FinancialPlanService
         $profitMonths = [];
         for ($i = 0; $i < 12; $i++) {
             $bal = $incomeMonths[$i] - $expenseMonths[$i];
-            $sav = $bal * $rate;
+            // Meta de ahorro solo sobre saldo positivo (no “ahorro” negativo).
+            $sav = $bal > 0.0 ? ($bal * $rate) : 0.0;
             $balanceMonths[] = $bal;
             $savingsMonths[] = $sav;
             $profitMonths[] = $bal - $sav;
