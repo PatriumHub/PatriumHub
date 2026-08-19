@@ -47,12 +47,14 @@ require_once __DIR__ . '/Services/AssetOwnerService.php';
 require_once __DIR__ . '/Services/AccountOwnerService.php';
 require_once __DIR__ . '/Services/PersonFinancialPlanService.php';
 require_once __DIR__ . '/Services/ProjectionsAggregateService.php';
+require_once __DIR__ . '/Services/FinancialGoalsService.php';
 
 foreach ([
     'AuthController',
     'HomeController',
     'DashboardController',
     'ProjectionsController',
+    'FinancialGoalsController',
     'PeopleController',
     'CompanyController',
     'CompanyClientController',

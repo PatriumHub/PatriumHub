@@ -35,6 +35,7 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
             <?php if ($isAdmin): ?>
                 <a class="<?= e(nav_active('/')) ?>" href="<?= e(url('/')) ?>">Inicio</a>
                 <a class="<?= e(nav_active('/dashboard', true)) ?>" href="<?= e(url('/dashboard')) ?>">Dashboard</a>
+                <a class="<?= e(nav_active('/objetivos', true)) ?>" href="<?= e(url('/objetivos')) ?>">Objetivos</a>
                 <a class="<?= e(nav_active('/proyecciones', true)) ?>" href="<?= e(url('/proyecciones')) ?>">Proyecciones</a>
 
                 <details class="nav-drop<?= $wealthActive ? ' is-active' : '' ?>">

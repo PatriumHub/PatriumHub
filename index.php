@@ -18,6 +18,13 @@ $router->post('/dashboard/vistas', [SavedViewController::class, 'store']);
 $router->post('/dashboard/vistas/{id}/eliminar', [SavedViewController::class, 'destroy']);
 $router->get('/dashboard/mercadopago', [DashboardController::class, 'mercadopago']);
 $router->get('/proyecciones', [ProjectionsController::class, 'index']);
+$router->get('/objetivos', [FinancialGoalsController::class, 'index']);
+$router->get('/objetivos/nuevo', [FinancialGoalsController::class, 'create']);
+$router->post('/objetivos', [FinancialGoalsController::class, 'store']);
+$router->post('/objetivos/fondo-emergencia', [FinancialGoalsController::class, 'updateEmergency']);
+$router->post('/objetivos/ahorro-15', [FinancialGoalsController::class, 'updateMs03']);
+$router->post('/objetivos/{id}/progreso', [FinancialGoalsController::class, 'updateProgress']);
+$router->post('/objetivos/{id}/eliminar', [FinancialGoalsController::class, 'destroy']);
 
 $router->get('/participaciones', [OwnershipController::class, 'index']);
 $router->get('/participaciones/nueva', [OwnershipController::class, 'create']);

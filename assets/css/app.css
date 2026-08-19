@@ -134,7 +134,7 @@ code { font-size: 0.92em; color: var(--muted); font-family: var(--font-mono); }
 .nav-drop { position: relative; }
 .nav-drop > summary::-webkit-details-marker { display: none; }
 .nav-drop > summary::after {
-    content: "▾";
+    content: "?";
     margin-left: 0.35rem;
     font-size: 0.75em;
     opacity: 0.7;
@@ -332,9 +332,9 @@ code { font-size: 0.92em; color: var(--muted); font-family: var(--font-mono); }
 }
 .th-sort.is-asc .sort-ind,
 .th-sort.is-desc .sort-ind { opacity: 1; color: var(--accent); }
-.th-sort .sort-ind::before { content: "↕"; }
-.th-sort.is-asc .sort-ind::before { content: "↑"; }
-.th-sort.is-desc .sort-ind::before { content: "↓"; }
+.th-sort .sort-ind::before { content: "?"; }
+.th-sort.is-asc .sort-ind::before { content: "?"; }
+.th-sort.is-desc .sort-ind::before { content: "?"; }
 .th-sort.num { text-align: right; }
 
 label { display: grid; gap: 0.35rem; font-size: 0.9rem; color: var(--muted); }
@@ -845,7 +845,7 @@ input:focus, select:focus, textarea:focus {
     cursor: default;
 }
 
-/* —— Dashboard Personal —— */
+/* ?? Dashboard Personal ?? */
 .personal-dash .personal-filters {
     display: flex;
     flex-wrap: wrap;
@@ -1008,7 +1008,7 @@ input:focus, select:focus, textarea:focus {
 
 .is-hidden { display: none !important; }
 
-/* Estados y proyección (dashboard + tablas) */
+/* Estados y proyecci?n (dashboard + tablas) */
 .fp-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -1095,7 +1095,7 @@ button.fp-sheet-tab.is-active {
 }
 .fp-fold > summary::-webkit-details-marker { display: none; }
 .fp-fold > summary::after {
-    content: '▾';
+    content: '?';
     color: var(--muted);
     font-size: 0.9rem;
     transition: transform 0.15s ease;
@@ -1437,7 +1437,7 @@ button.fp-sheet-tab.is-active {
     .fp-toolbar { flex-direction: column; align-items: stretch; }
 }
 
-/* Proyección personal — board */
+/* Proyecci?n personal ? board */
 .pp-board {
     background: #f4f6f8;
     border: 1px solid var(--line);
@@ -2008,7 +2008,7 @@ button.fp-sheet-tab.is-active {
     .pp-daily-month-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Gastos agrupados — composición por entidad */
+/* Gastos agrupados ? composici?n por entidad */
 .bg-group-body {
     display: grid;
     grid-template-columns: minmax(0, 1.45fr) minmax(14rem, 0.85fr);
@@ -2035,3 +2035,154 @@ button.fp-sheet-tab.is-active {
 @media (max-width: 900px) {
     .bg-group-body { grid-template-columns: 1fr; }
 }
+
+/* ?? Objetivos financieros ?? */
+.objetivos-page .obj-context {
+    margin: 0 0 1.25rem;
+    font-size: 0.92rem;
+}
+.obj-block { margin-top: 0.5rem; }
+.obj-fulfilled {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: var(--ink);
+    white-space: nowrap;
+}
+.obj-head-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+}
+.obj-divider {
+    border: 0;
+    border-top: 1px solid #dbe3ec;
+    margin: 2rem 0 1.5rem;
+}
+.obj-rules,
+.obj-custom-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+.obj-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+.obj-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+}
+.obj-card-head h3 {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: 650;
+    color: var(--ink);
+}
+.obj-card-head p {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+    line-height: 1.4;
+}
+.obj-pct {
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+}
+.obj-bar {
+    height: 12px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+    border: 1px solid #e8edf2;
+}
+.obj-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    min-width: 0;
+    transition: width 0.55s ease, background 0.35s ease;
+}
+.obj-card.tone-low .obj-pct { color: #e11d48; }
+.obj-card.tone-low .obj-bar > span {
+    background: linear-gradient(90deg, #be123c 0%, #fb7185 100%);
+}
+.obj-card.tone-mid .obj-pct { color: #d97706; }
+.obj-card.tone-mid .obj-bar > span {
+    background: linear-gradient(90deg, #b45309 0%, #fbbf24 100%);
+}
+.obj-card.tone-good .obj-pct { color: #0284c7; }
+.obj-card.tone-good .obj-bar > span {
+    background: linear-gradient(90deg, #0369a1 0%, #38bdf8 100%);
+}
+.obj-card.tone-ok .obj-pct { color: #047857; }
+.obj-card.tone-ok .obj-bar > span {
+    background: linear-gradient(90deg, #047857 0%, #34d399 100%);
+}
+.obj-card.is-done {
+    border-color: #a7f3d0;
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.12);
+}
+.obj-card-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.86rem;
+    color: var(--muted);
+}
+.obj-amounts,
+.obj-time {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+}
+.obj-notes {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--muted);
+}
+.obj-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+    padding-top: 0.35rem;
+    border-top: 1px solid #f1f5f9;
+}
+.obj-progress-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    align-items: end;
+    flex: 1;
+}
+.obj-progress-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+.obj-progress-form input {
+    min-width: 9rem;
+}
+.obj-empty { margin: 0.5rem 0 1rem; }
+.obj-create h3 {
+    margin: 0 0 0.85rem;
+    font-size: 1.05rem;
+}
+.obj-create-form { margin: 0; }
