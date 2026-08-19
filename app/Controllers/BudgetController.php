@@ -279,6 +279,25 @@ final class BudgetController
         redirect('/presupuestos/plantillas');
     }
 
+    public static function destroyTemplateGroup(string $entityId): void
+    {
+        Auth::requireAdminArea();
+        require_csrf();
+        $eid = (int) $entityId;
+        try {
+            $n = BudgetService::deleteTemplatesForEntity($eid);
+            flash(
+                'success',
+                $n > 0
+                    ? ('Grupo eliminado: ' . $n . ' gasto(s). Pendientes borrados; pagos ya hechos se mantienen.')
+                    : 'El grupo no tenía gastos activos.'
+            );
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/presupuestos/plantillas');
+    }
+
     /** @return array<string,mixed>|null */
     private static function templatePayload(): ?array
     {

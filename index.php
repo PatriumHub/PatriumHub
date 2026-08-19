@@ -100,6 +100,7 @@ $router->get('/presupuestos/plantillas/nueva', [BudgetController::class, 'create
 $router->post('/presupuestos/plantillas', [BudgetController::class, 'storeTemplate']);
 $router->get('/presupuestos/plantillas/{id}/editar', [BudgetController::class, 'editTemplate']);
 $router->post('/presupuestos/plantillas/{id}', [BudgetController::class, 'updateTemplate']);
+$router->post('/presupuestos/plantillas/grupo/{entityId}/eliminar', [BudgetController::class, 'destroyTemplateGroup']);
 $router->post('/presupuestos/plantillas/{id}/eliminar', [BudgetController::class, 'destroyTemplate']);
 $router->post('/presupuestos/items/{id}/pagar', [BudgetController::class, 'payItem']);
 $router->post('/presupuestos/items/{id}/omitir', [BudgetController::class, 'skipItem']);

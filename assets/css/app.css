@@ -1780,3 +1780,31 @@ button.fp-sheet-tab.is-active {
     .cp-reality,
     .cp-kpis { grid-template-columns: 1fr; }
 }
+
+/* Gastos agrupados — composición por entidad */
+.bg-group-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(14rem, 0.85fr);
+    gap: 1rem;
+    align-items: start;
+}
+.bg-group-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+}
+.bg-group-chart {
+    margin: 0;
+    padding: 1rem 1.1rem 1.15rem;
+}
+.bg-group-chart h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+.bg-group-chart .chart-hint {
+    margin: 0.25rem 0 0.65rem;
+}
+@media (max-width: 900px) {
+    .bg-group-body { grid-template-columns: 1fr; }
+}

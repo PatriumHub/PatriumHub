@@ -452,4 +452,21 @@ final class BudgetService
             throw $e;
         }
     }
+
+    /** Elimina todos los gastos activos del grupo de una entidad. @return int cantidad procesada */
+    public static function deleteTemplatesForEntity(int $entityId): int
+    {
+        if ($entityId < 1) {
+            throw new RuntimeException('Entidad inválida.');
+        }
+        $stmt = Database::pdo()->prepare(
+            'SELECT id FROM budget_templates WHERE entity_id = :e AND is_active = 1 ORDER BY id'
+        );
+        $stmt->execute(['e' => $entityId]);
+        $ids = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+        foreach ($ids as $id) {
+            self::deleteTemplate($id);
+        }
+        return count($ids);
+    }
 }
