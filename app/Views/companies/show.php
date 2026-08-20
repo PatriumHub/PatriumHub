@@ -336,6 +336,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                             <tbody id="fp-summary-body"></tbody>
                         </table>
                     </div>
+                    <p id="fp-net-month-count" class="fp-net-month-count" hidden></p>
                     <p class="fp-hint">
                         Ctrl+S guarda.
                         <?php if (!empty($fp['updated_at'])): ?>

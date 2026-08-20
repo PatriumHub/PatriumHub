@@ -909,28 +909,73 @@
       rows.push(['Por persona (÷' + n + ')', perM, s.profitAnnual / n, 'split']);
     }
     summaryBody.innerHTML = '';
+    let posMonths = 0;
+    let negMonths = 0;
     rows.forEach(([label, months, annual, tone]) => {
       const tr = document.createElement('tr');
-      String(tone || '')
+      const tones = String(tone || '')
         .split(/\s+/)
-        .filter(Boolean)
-        .forEach((t) => tr.classList.add('fp-sum-' + t));
+        .filter(Boolean);
+      const isNet = tones.includes('accent');
+      tones.forEach((t) => tr.classList.add('fp-sum-' + t));
       const th = document.createElement('th');
       th.textContent = label;
       tr.appendChild(th);
       months.forEach((v) => {
+        const num = Number(v) || 0;
         const td = document.createElement('td');
         td.className = 'num';
-        td.textContent = v ? formatMoney(v) : '—';
-        if (v < 0) td.classList.add('amount-out');
+        td.textContent = num ? formatMoney(num) : '—';
+        if (isNet) {
+          if (num > 0.009) {
+            td.classList.add('amount-in');
+            posMonths += 1;
+          } else if (num < -0.009) {
+            td.classList.add('amount-out');
+            negMonths += 1;
+          }
+        } else if (num < 0) {
+          td.classList.add('amount-out');
+        }
         tr.appendChild(td);
       });
       const tot = document.createElement('td');
       tot.className = 'num fp-row-total';
       tot.textContent = formatMoney(annual);
+      if (isNet) {
+        const a = Number(annual) || 0;
+        if (a > 0.009) tot.classList.add('amount-in');
+        else if (a < -0.009) tot.classList.add('amount-out');
+      }
       tr.appendChild(tot);
       summaryBody.appendChild(tr);
     });
+    const countEl = document.getElementById('fp-net-month-count');
+    if (countEl) {
+      const zeroMonths = Math.max(0, 12 - posMonths - negMonths);
+      const pct = (n) => (n / 12) * 100;
+      countEl.hidden = false;
+      countEl.innerHTML =
+        '<div class="fp-net-meter-head">' +
+          '<span class="fp-net-meter-kicker">Ganancia neta</span>' +
+          '<span class="fp-net-meter-sub">Distribución de los 12 meses</span>' +
+        '</div>' +
+        '<div class="fp-net-meter-stats">' +
+          '<div class="fp-net-meter-stat is-pos">' +
+            '<strong class="fp-net-meter-num">' + posMonths + '</strong>' +
+            '<span class="fp-net-meter-label">meses positivos</span>' +
+          '</div>' +
+          '<div class="fp-net-meter-stat is-neg">' +
+            '<strong class="fp-net-meter-num">' + negMonths + '</strong>' +
+            '<span class="fp-net-meter-label">meses negativos</span>' +
+          '</div>' +
+        '</div>' +
+        '<div class="fp-net-meter-bar" role="presentation" aria-hidden="true">' +
+          (posMonths ? '<span class="fp-net-meter-fill is-pos" style="width:' + pct(posMonths) + '%"></span>' : '') +
+          (negMonths ? '<span class="fp-net-meter-fill is-neg" style="width:' + pct(negMonths) + '%"></span>' : '') +
+          (zeroMonths ? '<span class="fp-net-meter-fill is-zero" style="width:' + pct(zeroMonths) + '%"></span>' : '') +
+        '</div>';
+    }
   }
 
   function renderRate() {

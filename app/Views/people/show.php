@@ -439,6 +439,7 @@ $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct
                         <tbody id="pp-summary-body"></tbody>
                     </table>
                 </div>
+                <p id="pp-net-month-count" class="fp-net-month-count" hidden></p>
                 <p class="fp-hint">Ctrl+S guarda.
                     <?php if (!empty($pp['updated_at'])): ?>
                         Último guardado: <?= e((string) $pp['updated_at']) ?>
