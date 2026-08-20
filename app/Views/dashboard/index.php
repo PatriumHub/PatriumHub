@@ -396,7 +396,7 @@ $modeLede = match (true) {
                             <a href="<?= e(url('/dashboard?view=' . $sv['id'])) ?>"><?= e($sv['name']) ?></a>
                             <form method="post" action="<?= e(url('/dashboard/vistas/' . $sv['id'] . '/eliminar')) ?>" class="inline">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="linkish">×</button>
+                                <button type="submit" class="linkish danger" aria-label="Eliminar vista">×</button>
                             </form>
                         </li>
                     <?php endforeach; ?>

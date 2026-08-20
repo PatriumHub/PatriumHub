@@ -141,6 +141,17 @@
         <label class="full">Notas<textarea name="notes" rows="2"><?= e($a['notes'] ?? '') ?></textarea></label>
         <div class="full"><button type="submit">Guardar</button></div>
     </form>
+
+    <?php if ($isEdit): ?>
+        <div class="panel mt" style="border-color: color-mix(in srgb, var(--danger) 35%, var(--line))">
+            <h2 style="margin-top:0;color:var(--danger)">Eliminar activo</h2>
+            <p class="muted">Se borra el activo y sus co-titulares. No se puede deshacer.</p>
+            <form method="post" action="<?= e(url('/activos/' . (int) $a['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar este activo? No se puede deshacer.');">
+                <?= csrf_field() ?>
+                <button type="submit" class="btn danger">Eliminar activo</button>
+            </form>
+        </div>
+    <?php endif; ?>
 </section>
 <script>
 (() => {

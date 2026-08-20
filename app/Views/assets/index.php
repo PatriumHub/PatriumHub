@@ -79,7 +79,15 @@ $hide = hide_amounts();
                         <td><?= e($row['account_name'] ?? '—') ?></td>
                         <td><?= e($row['category']) ?></td>
                         <td class="num"><?= e(money($row['current_value'], $row['currency_code'])) ?></td>
-                        <td class="actions"><a href="<?= e(url('/activos/' . $row['id'] . '/editar')) ?>">Editar</a></td>
+                        <td class="actions col-actions">
+                            <div class="row-actions" style="grid-template-columns: repeat(2, minmax(4.5rem, auto));">
+                                <a class="btn ghost sm" href="<?= e(url('/activos/' . $row['id'] . '/editar')) ?>">Editar</a>
+                                <form method="post" action="<?= e(url('/activos/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar este activo? No se puede deshacer.');">
+                                    <?= csrf_field() ?>
+                                    <button type="submit" class="btn danger sm">Eliminar</button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

@@ -299,6 +299,43 @@ final class AssetController
         redirect('/activos');
     }
 
+    public static function destroy(string $id): void
+    {
+        Auth::requireAdminArea();
+        require_csrf();
+        AssetOwnerService::ensureSchema();
+        $assetId = (int) $id;
+        $asset = self::find($assetId);
+        if (!$asset) {
+            flash('error', 'Activo no encontrado.');
+            redirect('/activos');
+        }
+
+        try {
+            $pdo = Database::pdo();
+            $pdo->beginTransaction();
+            $pdo->prepare('DELETE FROM asset_owners WHERE asset_id = :id')->execute(['id' => $assetId]);
+            $pdo->prepare('DELETE FROM assets WHERE id = :id')->execute(['id' => $assetId]);
+            $pdo->commit();
+            AuditService::log(
+                'delete',
+                'asset',
+                $assetId,
+                'Eliminación activo: ' . ($asset['name'] ?? ''),
+                $asset,
+                null
+            );
+            flash('success', 'Activo eliminado.');
+        } catch (Throwable $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            flash('error', 'No se pudo eliminar: ' . $e->getMessage());
+            redirect('/activos/' . $assetId . '/editar');
+        }
+        redirect('/activos');
+    }
+
     /**
      * @return array{0:int,1:list<array{entity_id:int,ownership_pct:float}>,2:float}|null
      */

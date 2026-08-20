@@ -47,7 +47,7 @@
                     </form>
                     <form method="post" action="<?= e(url('/integraciones/' . $item['id'] . '/revocar')) ?>" class="inline" onsubmit="return confirm('¿Eliminar esta conexión? Se borrarán datos sync. No se puede deshacer.');">
                         <?= csrf_field() ?>
-                        <button type="submit" class="btn ghost">Eliminar</button>
+                        <button type="submit" class="btn danger">Eliminar</button>
                     </form>
                 </div>
             <?php endif; ?>

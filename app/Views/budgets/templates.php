@@ -104,7 +104,7 @@ $chartsPayload = [];
                                             <a href="<?= e(url('/presupuestos/plantillas/' . (int) $row['id'] . '/editar')) ?>">Editar</a>
                                             <form method="post" action="<?= e(url('/presupuestos/plantillas/' . (int) $row['id'] . '/eliminar')) ?>" class="inline" onsubmit="return confirm('¿Sacar este gasto del grupo? Se borran pendientes; los pagos ya hechos se mantienen y no se regenera.');">
                                                 <?= csrf_field() ?>
-                                                <button type="submit" class="linkish">Eliminar</button>
+                                                <button type="submit" class="btn danger sm">Eliminar</button>
                                             </form>
                                         </td>
                                     </tr>

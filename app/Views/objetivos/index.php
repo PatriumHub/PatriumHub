@@ -158,7 +158,7 @@ $hide = hide_amounts();
                                       onsubmit="return confirm('¿Eliminar este objetivo?');">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="currency_code" value="<?= e($currency) ?>">
-                                    <button type="submit" class="btn danger ghost">Eliminar</button>
+                                    <button type="submit" class="btn danger">Eliminar</button>
                                 </form>
                             </div>
                         <?php endif; ?>

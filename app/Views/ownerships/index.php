@@ -70,7 +70,7 @@ $hide = hide_amounts();
                             <a href="<?= e(url('/participaciones/' . $row['id'] . '/editar')) ?>">Editar</a>
                             <form method="post" action="<?= e(url('/participaciones/' . $row['id'] . '/eliminar')) ?>" class="inline" onsubmit="return confirm('¿Eliminar participación?');">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="linkish">Eliminar</button>
+                                <button type="submit" class="btn danger sm">Eliminar</button>
                             </form>
                         </td>
                     </tr>

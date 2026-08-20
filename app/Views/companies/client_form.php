@@ -79,7 +79,7 @@ $years = is_array($client['years'] ?? null) ? $client['years'] : [];
             <form method="post" action="<?= e(url($clientPath . '/documentos/' . (int) $contract['id'] . '/eliminar')) ?>" class="inline"
                   onsubmit="return confirm('¿Eliminar el contrato PDF?');">
                 <?= csrf_field() ?>
-                <button type="submit" class="btn ghost danger">Quitar contrato</button>
+                        <button type="submit" class="btn danger">Quitar contrato</button>
             </form>
         <?php else: ?>
             <p class="muted">Sin contrato cargado.</p>
@@ -114,7 +114,7 @@ $years = is_array($client['years'] ?? null) ? $client['years'] : [];
                             <form method="post" action="<?= e(url($clientPath . '/documentos/' . (int) $doc['id'] . '/eliminar')) ?>" class="inline"
                                   onsubmit="return confirm('¿Eliminar este documento?');">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="linkish">Eliminar</button>
+                                <button type="submit" class="btn danger sm">Eliminar</button>
                             </form>
                         </td>
                     </tr>

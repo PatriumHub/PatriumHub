@@ -85,7 +85,8 @@
       || document.getElementById('company-charts')
       || document.getElementById('accounts-charts')
       || document.getElementById('list-charts')
-      || document.getElementById('mp-dashboard-charts');
+      || document.getElementById('mp-dashboard-charts')
+      || document.getElementById('gastos-charts');
     if (!node) return;
     if (typeof Chart === 'undefined') {
       if (attempt < 50) window.setTimeout(() => bootCharts(attempt + 1), 100);
@@ -744,6 +745,220 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           scales: scaleOpts,
+        },
+      });
+    }
+
+    const gastosMonth = document.getElementById('chartGastosMonth');
+    if (gastosMonth && data.byMonth && !data.hide) {
+      new Chart(gastosMonth, {
+        type: 'line',
+        data: {
+          labels: data.byMonth.labels || [],
+          datasets: [
+            {
+              label: 'Ingresos',
+              data: data.byMonth.income || [],
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16,185,129,0.12)',
+              tension: 0.25,
+              fill: true,
+            },
+            {
+              label: 'Egresos',
+              data: data.byMonth.expense || [],
+              borderColor: '#f87171',
+              backgroundColor: 'rgba(248,113,113,0.12)',
+              tension: 0.25,
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: tick, boxWidth: 12 } },
+          },
+          scales: scaleOpts,
+        },
+      });
+    }
+
+    const barPalette = ['#f87171', '#fb923c', '#fbbf24', '#a78bfa', '#60a5fa', '#22d3ee', '#34d399', '#f472b6'];
+    const sizeHbarWrap = (el, n) => {
+      const wrap = el && el.parentElement;
+      if (!wrap || !wrap.classList.contains('gastos-hbar')) return;
+      const rows = Math.max(1, Number(n) || 1);
+      wrap.style.height = Math.min(520, Math.max(240, 48 + rows * 34)) + 'px';
+    };
+    const makeExpenseBar = (el, series, horizontal) => {
+      if (!el || !series || data.hide || !(series.labels || []).length) return;
+      if (horizontal) sizeHbarWrap(el, series.labels.length);
+      const hScales = horizontal
+        ? {
+            x: { ticks: { color: tick, callback: moneyTick }, grid: { color: grid } },
+            y: {
+              ticks: { color: tick, autoSkip: false, font: { size: 12 } },
+              grid: { display: false },
+            },
+          }
+        : scaleOpts;
+      new Chart(el, {
+        type: 'bar',
+        data: {
+          labels: series.labels,
+          datasets: [{
+            data: series.values,
+            backgroundColor: series.labels.map((_, i) => barPalette[i % barPalette.length]),
+            borderRadius: 8,
+            barPercentage: 0.78,
+            categoryPercentage: 0.82,
+          }],
+        },
+        options: {
+          indexAxis: horizontal ? 'y' : 'x',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: hScales,
+          layout: horizontal ? { padding: { left: 4, right: 8 } } : undefined,
+        },
+      });
+    };
+    makeExpenseBar(document.getElementById('chartGastosEntity'), data.byEntity, true);
+    makeExpenseBar(document.getElementById('chartGastosCategory'), data.byCategory, true);
+    makeExpenseBar(document.getElementById('chartGastosAccount'), data.byAccount, true);
+
+    const catMonthEl = document.getElementById('chartGastosCategoryMonth');
+    const catMonth = data.byCategoryMonth;
+    if (catMonthEl && catMonth && !data.hide && (catMonth.labels || []).length) {
+      const moneyFmt = (v) => {
+        try {
+          return new Intl.NumberFormat('es-AR', {
+            style: 'currency',
+            currency: data.currency || 'ARS',
+            maximumFractionDigits: 0,
+          }).format(v);
+        } catch (_) {
+          return String(v);
+        }
+      };
+      const monthShort = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      const monthLabels = (catMonth.labels || []).map((ym) => {
+        const m = String(ym).match(/^(\d{4})-(\d{2})$/);
+        if (!m) return String(ym);
+        const mi = Math.max(0, Math.min(11, parseInt(m[2], 10) - 1));
+        return monthShort[mi] + ' ' + m[1].slice(2);
+      });
+      const series = catMonth.series || [];
+      new Chart(catMonthEl, {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: series.length
+            ? series.map((s) => ({
+                label: s.name,
+                data: s.values || [],
+                backgroundColor: s.color,
+                borderWidth: 0,
+                borderRadius: 3,
+                stack: 'gastos',
+                pcts: s.pcts || [],
+                barPercentage: 0.85,
+                categoryPercentage: 0.9,
+              }))
+            : [{
+                label: 'Sin egresos',
+                data: (catMonth.labels || []).map(() => 0),
+                backgroundColor: 'rgba(148,163,184,0.25)',
+                borderWidth: 0,
+                stack: 'gastos',
+                pcts: [],
+              }],
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: tick, boxWidth: 12, padding: 14 },
+            },
+            tooltip: {
+              callbacks: {
+                footer: (items) => {
+                  if (!items.length) return '';
+                  const i = items[0].dataIndex;
+                  const total = (catMonth.month_totals || [])[i] || 0;
+                  return 'Total mes: ' + moneyFmt(total);
+                },
+                label: (ctx) => {
+                  const val = Number(ctx.raw) || 0;
+                  const pct = (ctx.dataset.pcts || [])[ctx.dataIndex];
+                  const pctTxt = pct == null ? '—' : String(pct).replace('.', ',') + '%';
+                  return ' ' + ctx.dataset.label + ': ' + moneyFmt(val) + ' (' + pctTxt + ')';
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              stacked: true,
+              ticks: { color: tick, callback: moneyTick },
+              grid: { color: grid },
+            },
+            y: {
+              stacked: true,
+              ticks: { color: tick, autoSkip: false, font: { size: 12 } },
+              grid: { display: false },
+            },
+          },
+        },
+      });
+    }
+
+    const gastosType = document.getElementById('chartGastosType');
+    if (gastosType && data.byType && !data.hide && (data.byType.labels || []).length) {
+      new Chart(gastosType, {
+        type: 'doughnut',
+        data: {
+          labels: data.byType.labels,
+          datasets: [{
+            data: data.byType.values,
+            backgroundColor: ['#f87171', '#fb923c', '#a78bfa'],
+            borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: tick, boxWidth: 12 } },
+          },
+        },
+      });
+    }
+
+    const gastosSplit = document.getElementById('chartGastosSplit');
+    if (gastosSplit && data.splitBudget && !data.hide) {
+      new Chart(gastosSplit, {
+        type: 'doughnut',
+        data: {
+          labels: data.splitBudget.labels || [],
+          datasets: [{
+            data: data.splitBudget.values || [],
+            backgroundColor: ['#fbbf24', '#64748b'],
+            borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { color: tick, boxWidth: 12 } },
+          },
         },
       });
     }

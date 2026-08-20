@@ -80,8 +80,44 @@ final class Catalog
     /** @return list<array{id:int,name:string,kind:string}> */
     public static function transactionCategories(): array
     {
+        self::ensureTransactionCategories();
         return Database::pdo()
             ->query('SELECT id, name, kind FROM transaction_categories ORDER BY name')
             ->fetchAll();
+    }
+
+    /** Inserta categorías de egreso faltantes (idempotente). */
+    public static function ensureTransactionCategories(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        $wanted = [
+            ['Comida', 'expense'],
+            ['Salidas', 'expense'],
+            ['Suscripciones', 'expense'],
+            ['Limpieza', 'expense'],
+            ['Higiene personal', 'expense'],
+            ['Kiosco', 'expense'],
+            ['Librería', 'expense'],
+            ['Auto', 'expense'],
+            ['Arreglos', 'expense'],
+            ['Celular', 'expense'],
+            ['Alquiler/es', 'expense'],
+        ];
+        $pdo = Database::pdo();
+        $check = $pdo->prepare('SELECT id FROM transaction_categories WHERE name = :n LIMIT 1');
+        $ins = $pdo->prepare(
+            'INSERT INTO transaction_categories (name, kind, is_system) VALUES (:n, :k, 1)'
+        );
+        foreach ($wanted as [$name, $kind]) {
+            $check->execute(['n' => $name]);
+            if ($check->fetchColumn()) {
+                continue;
+            }
+            $ins->execute(['n' => $name, 'k' => $kind]);
+        }
     }
 }

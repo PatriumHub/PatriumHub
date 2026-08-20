@@ -68,8 +68,11 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
                 <a class="<?= e(nav_active('/dashboard', true)) ?>" href="<?= e(url('/dashboard')) ?>">Dashboard</a>
                 <a class="<?= e(nav_active('/objetivos', true)) ?>" href="<?= e(url('/objetivos')) ?>">Objetivos</a>
                 <a class="<?= e(nav_active('/proyecciones', true)) ?>" href="<?= e(url('/proyecciones')) ?>">Proyecciones</a>
+                <a class="<?= e(nav_active('/presupuestos')) ?>" href="<?= e(url('/presupuestos')) ?>">Presupuestos</a>
+                <a class="<?= e(nav_active('/gastos', true)) ?>" href="<?= e(url('/gastos')) ?>">Gastos</a>
+                <a class="<?= e(nav_active('/movimientos')) ?>" href="<?= e(url('/movimientos')) ?>">Movimientos</a>
 
-                <details class="nav-drop<?= $wealthActive ? ' is-active' : '' ?>">
+                <details class="nav-drop nav-drop--wealth<?= $wealthActive ? ' is-active' : '' ?>">
                     <summary>Patrimonio</summary>
                     <div class="nav-menu">
                         <a class="<?= e(nav_active('/personas')) ?>" href="<?= e(url('/personas')) ?>">Personas</a>
@@ -83,9 +86,6 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
                         <a class="<?= e(nav_active('/inventario')) ?>" href="<?= e(url('/inventario')) ?>">Inventario</a>
                     </div>
                 </details>
-
-                <a class="<?= e(nav_active('/presupuestos')) ?>" href="<?= e(url('/presupuestos')) ?>">Presupuestos</a>
-                <a class="<?= e(nav_active('/movimientos')) ?>" href="<?= e(url('/movimientos')) ?>">Movimientos</a>
             <?php else: ?>
                 <a class="<?= e(nav_active('/personas')) ?>" href="<?= e(url('/personas')) ?>">Personas</a>
                 <a class="<?= e(nav_active('/empresas')) ?>" href="<?= e(url('/empresas')) ?>">Empresas</a>

@@ -87,7 +87,7 @@ $hide = hide_amounts();
                             <a href="<?= e(url('/propiedades/' . $row['id'] . '/editar')) ?>">Editar</a>
                             <form method="post" action="<?= e(url('/propiedades/' . (int) $row['id'] . '/eliminar')) ?>" class="inline" onsubmit="return confirm('¿Eliminar esta propiedad? No se puede deshacer.');">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="linkish">Eliminar</button>
+                                <button type="submit" class="btn danger sm">Eliminar</button>
                             </form>
                         </td>
                     </tr>

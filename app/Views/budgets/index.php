@@ -155,7 +155,7 @@ $today = date('Y-m-d');
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn sm ghost">Eliminar</button>
+                                        <button type="submit" class="btn danger sm">Eliminar</button>
                                     </form>
                                 <?php elseif ($status === 'paid'): ?>
                                     <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/revertir')) ?>" onsubmit="return confirm('¿Revertir el pago? Se anula el egreso y vuelve a pendiente.');">
@@ -169,7 +169,7 @@ $today = date('Y-m-d');
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn sm ghost">Eliminar</button>
+                                        <button type="submit" class="btn danger sm">Eliminar</button>
                                     </form>
                                 <?php else: ?>
                                     <span class="slot-empty" aria-hidden="true"></span>
@@ -178,7 +178,7 @@ $today = date('Y-m-d');
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn sm ghost">Eliminar</button>
+                                        <button type="submit" class="btn danger sm">Eliminar</button>
                                     </form>
                                 <?php endif; ?>
                             </div>

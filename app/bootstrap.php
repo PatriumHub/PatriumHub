@@ -48,6 +48,7 @@ require_once __DIR__ . '/Services/AccountOwnerService.php';
 require_once __DIR__ . '/Services/PersonFinancialPlanService.php';
 require_once __DIR__ . '/Services/ProjectionsAggregateService.php';
 require_once __DIR__ . '/Services/FinancialGoalsService.php';
+require_once __DIR__ . '/Services/ExpenseAnalysisService.php';
 
 foreach ([
     'AuthController',
@@ -55,6 +56,7 @@ foreach ([
     'DashboardController',
     'ProjectionsController',
     'FinancialGoalsController',
+    'ExpensesController',
     'PeopleController',
     'CompanyController',
     'CompanyClientController',

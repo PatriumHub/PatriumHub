@@ -18,6 +18,7 @@ $router->post('/dashboard/vistas', [SavedViewController::class, 'store']);
 $router->post('/dashboard/vistas/{id}/eliminar', [SavedViewController::class, 'destroy']);
 $router->get('/dashboard/mercadopago', [DashboardController::class, 'mercadopago']);
 $router->get('/proyecciones', [ProjectionsController::class, 'index']);
+$router->get('/gastos', [ExpensesController::class, 'index']);
 $router->get('/objetivos', [FinancialGoalsController::class, 'index']);
 $router->get('/objetivos/nuevo', [FinancialGoalsController::class, 'create']);
 $router->post('/objetivos', [FinancialGoalsController::class, 'store']);
@@ -79,6 +80,7 @@ $router->get('/activos/nuevo', [AssetController::class, 'create']);
 $router->post('/activos', [AssetController::class, 'store']);
 $router->get('/activos/{id}/editar', [AssetController::class, 'edit']);
 $router->post('/activos/{id}', [AssetController::class, 'update']);
+$router->post('/activos/{id}/eliminar', [AssetController::class, 'destroy']);
 
 $router->get('/propiedades', [PropertyController::class, 'index']);
 $router->get('/propiedades/nueva', [PropertyController::class, 'create']);
