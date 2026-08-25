@@ -78,10 +78,11 @@ $today = date('Y-m-d');
                 <thead>
                 <tr>
                     <th class="th-sort" data-sort="text" data-col="0" scope="col">Concepto <span class="sort-ind" aria-hidden="true"></span></th>
-                    <th class="th-sort" data-sort="text" data-col="1" scope="col">Entidad <span class="sort-ind" aria-hidden="true"></span></th>
-                    <th class="th-sort" data-sort="text" data-col="2" scope="col">Vence <span class="sort-ind" aria-hidden="true"></span></th>
-                    <th class="th-sort num" data-sort="num" data-col="3" scope="col">Importe <span class="sort-ind" aria-hidden="true"></span></th>
-                    <th class="th-sort" data-sort="status" data-col="4" scope="col">Estado <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="text" data-col="1" scope="col">Categoría <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="text" data-col="2" scope="col">Entidad <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="text" data-col="3" scope="col">Vence <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort num" data-sort="num" data-col="4" scope="col">Importe <span class="sort-ind" aria-hidden="true"></span></th>
+                    <th class="th-sort" data-sort="status" data-col="5" scope="col">Estado <span class="sort-ind" aria-hidden="true"></span></th>
                     <th></th>
                 </tr>
                 </thead>
@@ -104,6 +105,7 @@ $today = date('Y-m-d');
                                 <span class="badge" style="margin-left:0.35rem">Vencido</span>
                             <?php endif; ?>
                         </td>
+                        <td data-sort="<?= e(mb_strtolower((string) ($row['category_name'] ?? ''))) ?>"><?= e($row['category_name'] ?? '—') ?></td>
                         <td data-sort="<?= e(mb_strtolower((string) $row['entity_name'])) ?>"><?= e($row['entity_name']) ?></td>
                         <td data-sort="<?= e($due) ?>"><?= e($due) ?></td>
                         <td class="num" data-sort="<?= e((string) (float) $row['amount']) ?>"><?= e(money($row['amount'], $row['currency_code'])) ?></td>
@@ -120,7 +122,7 @@ $today = date('Y-m-d');
                             <div class="row-actions">
                                 <?php if ($status === 'pending'): ?>
                                     <details class="pay-drop">
-                                        <summary class="btn sm danger">Pagar</summary>
+                                        <summary class="btn-icon warn" title="Pagar" aria-label="Pagar"><?= ui_icon('pay') ?></summary>
                                         <div class="pay-menu">
                                             <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/pagar')) ?>" class="form-grid" style="gap:0.5rem;padding:0;border:0;box-shadow:none;background:transparent">
                                                 <?= csrf_field() ?>
@@ -149,36 +151,33 @@ $today = date('Y-m-d');
                                     <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/omitir')) ?>" onsubmit="return confirm('¿Omitir este ítem? Deja de contar como pasivo.');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
-                                        <button type="submit" class="btn sm ghost">Omitir</button>
+                                        <?= icon_action_button('skip', 'Omitir', '') ?>
                                     </form>
                                     <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar este gasto? Se saca del mes y deja de regenerarse.');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn danger sm">Eliminar</button>
+                                        <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
                                     </form>
                                 <?php elseif ($status === 'paid'): ?>
                                     <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/revertir')) ?>" onsubmit="return confirm('¿Revertir el pago? Se anula el egreso y vuelve a pendiente.');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn sm ghost">Revertir</button>
+                                        <?= icon_action_button('undo', 'Revertir', '') ?>
                                     </form>
-                                    <span class="slot-empty" aria-hidden="true"></span>
                                     <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar? Se revierte el pago (si hay egreso), se saca del mes y deja de regenerarse.');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn danger sm">Eliminar</button>
+                                        <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
                                     </form>
                                 <?php else: ?>
-                                    <span class="slot-empty" aria-hidden="true"></span>
-                                    <span class="slot-empty" aria-hidden="true"></span>
                                     <form method="post" action="<?= e(url('/presupuestos/items/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar este gasto omitido? Deja de regenerarse.');">
                                         <?= csrf_field() ?>
                                         <input type="hidden" name="period" value="<?= e($period) ?>">
                                         <?php if ($entityId): ?><input type="hidden" name="entity_id" value="<?= (int) $entityId ?>"><?php endif; ?>
-                                        <button type="submit" class="btn danger sm">Eliminar</button>
+                                        <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
                                     </form>
                                 <?php endif; ?>
                             </div>

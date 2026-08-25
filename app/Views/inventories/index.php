@@ -96,7 +96,7 @@ $chartPayload = [
                         <td><?= e($row['source']) ?></td>
                         <td class="num"><?= e(money($row['stock_value'], $row['currency_code'])) ?></td>
                         <td class="num"><?= e(number_format((float)$row['units_total'], 2, ',', '.')) ?></td>
-                        <td class="actions"><a href="<?= e(url('/inventario/' . $row['id'] . '/editar')) ?>">Editar</a></td>
+                        <td class="actions"><?= icon_action_link(url('/inventario/' . $row['id'] . '/editar'), 'edit', 'Editar') ?></td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>

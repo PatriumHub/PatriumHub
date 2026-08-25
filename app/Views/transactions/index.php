@@ -44,6 +44,7 @@
         ?>
     <?php else: ?>
         <div class="panel">
+            <div class="table-scroll">
             <table class="table" id="movements-table">
                 <thead>
                 <tr>
@@ -55,7 +56,7 @@
                     <th class="th-sort" data-sort="text" data-col="5" scope="col">Categoría <span class="sort-ind" aria-hidden="true"></span></th>
                     <th class="th-sort" data-sort="text" data-col="6" scope="col">Descripción <span class="sort-ind" aria-hidden="true"></span></th>
                     <th class="th-sort num" data-sort="num" data-col="7" scope="col">Importe <span class="sort-ind" aria-hidden="true"></span></th>
-                    <th></th>
+                    <th class="actions col-actions" scope="col" aria-label="Acciones">&nbsp;</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -78,13 +79,20 @@
                         <td data-sort="<?= e(mb_strtolower((string) ($row['category_name'] ?? ''))) ?>"><?= e($row['category_name'] ?? '—') ?></td>
                         <td data-sort="<?= e(mb_strtolower((string) ($row['description'] ?? ''))) ?>"><?= e($row['description'] ?? '—') ?></td>
                         <td class="num" data-sort="<?= e((string) $signed) ?>"><?= money_flow($row['amount'], $row['currency_code'], (string) $row['type']) ?></td>
-                        <td class="actions">
-                            <a href="<?= e(url('/movimientos/' . (int) $row['id'] . '/editar')) ?>">Editar</a>
+                        <td class="actions col-actions">
+                            <div class="row-icon-actions">
+                                <?= icon_action_link(url('/movimientos/' . (int) $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <form method="post" action="<?= e(url('/movimientos/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar este movimiento? Se recalculan los saldos de las cuentas.');">
+                                    <?= csrf_field() ?>
+                                    <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
             <?php
             $pagerRoute = '/movimientos';
             $pagerQuery = ['entity_id' => $entityId];

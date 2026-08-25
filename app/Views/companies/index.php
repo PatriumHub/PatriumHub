@@ -69,10 +69,12 @@ $hide = hide_amounts();
                         <td><?= e($row['industry'] ?? '—') ?></td>
                         <td><?= (int) $row['is_active'] ? 'Activa' : 'Inactiva' ?></td>
                         <td class="actions">
-                            <a href="<?= e(url('/empresas/' . $row['id'])) ?>">Ver</a>
-                            <?php if ($canWrite): ?>
-                                · <a href="<?= e(url('/empresas/' . $row['id'] . '/editar')) ?>">Editar</a>
-                            <?php endif; ?>
+                            <div class="row-icon-actions">
+                                <?= icon_action_link(url('/empresas/' . $row['id']), 'eye', 'Ver') ?>
+                                <?php if ($canWrite): ?>
+                                    <?= icon_action_link(url('/empresas/' . $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>

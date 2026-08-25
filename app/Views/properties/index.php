@@ -84,11 +84,13 @@ $hide = hide_amounts();
                         <td class="num"><?= e(money($row['current_value'], $row['currency_code'])) ?></td>
                         <td><?= e(number_format((float)$row['ownership_pct'], 2, ',', '.')) ?>%</td>
                         <td class="actions">
-                            <a href="<?= e(url('/propiedades/' . $row['id'] . '/editar')) ?>">Editar</a>
-                            <form method="post" action="<?= e(url('/propiedades/' . (int) $row['id'] . '/eliminar')) ?>" class="inline" onsubmit="return confirm('¿Eliminar esta propiedad? No se puede deshacer.');">
-                                <?= csrf_field() ?>
-                                <button type="submit" class="btn danger sm">Eliminar</button>
-                            </form>
+                            <div class="row-icon-actions">
+                                <?= icon_action_link(url('/propiedades/' . $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <form method="post" action="<?= e(url('/propiedades/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar esta propiedad? No se puede deshacer.');">
+                                    <?= csrf_field() ?>
+                                    <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>

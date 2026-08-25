@@ -8,9 +8,64 @@ declare(strict_types=1);
  */
 final class BudgetService
 {
+    /** Asegura columnas category_id en plantillas e ítems (idempotente). */
+    public static function ensureSchema(): void
+    {
+        static $done = false;
+        if ($done) {
+            return;
+        }
+        $done = true;
+        $pdo = Database::pdo();
+        $hasCol = static function (string $table, string $column) use ($pdo): bool {
+            $stmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c'
+            );
+            $stmt->execute(['t' => $table, 'c' => $column]);
+            return (int) $stmt->fetchColumn() > 0;
+        };
+        if (!$hasCol('budget_templates', 'category_id')) {
+            $pdo->exec(
+                'ALTER TABLE budget_templates
+                 ADD COLUMN category_id int UNSIGNED DEFAULT NULL AFTER due_day,
+                 ADD KEY fk_bt_category (category_id)'
+            );
+            try {
+                $pdo->exec(
+                    'ALTER TABLE budget_templates
+                     ADD CONSTRAINT fk_bt_category
+                     FOREIGN KEY (category_id) REFERENCES transaction_categories (id) ON DELETE SET NULL'
+                );
+            } catch (Throwable) {
+                // FK puede fallar si ya existe o el motor no la admite; la columna alcanza.
+            }
+        }
+        if (!$hasCol('budget_items', 'category_id')) {
+            $pdo->exec(
+                'ALTER TABLE budget_items
+                 ADD COLUMN category_id int UNSIGNED DEFAULT NULL AFTER include_in_net_worth,
+                 ADD KEY fk_bi_category (category_id)'
+            );
+            try {
+                $pdo->exec(
+                    'ALTER TABLE budget_items
+                     ADD CONSTRAINT fk_bi_category
+                     FOREIGN KEY (category_id) REFERENCES transaction_categories (id) ON DELETE SET NULL'
+                );
+            } catch (Throwable) {
+            }
+        }
+        $pdo->prepare(
+            "INSERT INTO settings (setting_key, setting_value, updated_at) VALUES ('schema.version', '0.8.8', CURRENT_TIMESTAMP)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP"
+        )->execute();
+    }
+
     /** Asegura ítems del período para todas las plantillas activas. */
     public static function ensurePeriod(?string $periodYm = null): int
     {
+        self::ensureSchema();
         $periodYm = self::normalizePeriod($periodYm ?? date('Y-m'));
         $pdo = Database::pdo();
         $templates = $pdo->query(
@@ -44,10 +99,10 @@ final class BudgetService
         $pdo->prepare(
             'INSERT INTO budget_items
              (template_id, entity_id, period_ym, name, amount, currency_code, due_date,
-              status, include_in_net_worth, account_id, notes)
+              status, include_in_net_worth, category_id, account_id, notes)
              VALUES
              (:template_id, :entity_id, :period_ym, :name, :amount, :currency_code, :due_date,
-              \'pending\', :include_in_net_worth, :account_id, :notes)'
+              \'pending\', :include_in_net_worth, :category_id, :account_id, :notes)'
         )->execute([
             'template_id' => (int) $template['id'],
             'entity_id' => (int) $template['entity_id'],
@@ -57,6 +112,7 @@ final class BudgetService
             'currency_code' => (string) ($template['currency_code'] ?? 'ARS'),
             'due_date' => $dueDate,
             'include_in_net_worth' => (int) ($template['include_in_net_worth'] ?? 1),
+            'category_id' => !empty($template['category_id']) ? (int) $template['category_id'] : null,
             'account_id' => $template['suggested_account_id'] !== null
                 ? (int) $template['suggested_account_id']
                 : null,
@@ -84,10 +140,13 @@ final class BudgetService
     /** @return list<array<string,mixed>> */
     public static function templates(?int $entityId = null): array
     {
-        $sql = "SELECT t.*, e.name AS entity_name, e.type AS entity_type, a.name AS account_name
+        self::ensureSchema();
+        $sql = "SELECT t.*, e.name AS entity_name, e.type AS entity_type, a.name AS account_name,
+                       c.name AS category_name
                 FROM budget_templates t
                 INNER JOIN entities e ON e.id = t.entity_id
                 LEFT JOIN accounts a ON a.id = t.suggested_account_id
+                LEFT JOIN transaction_categories c ON c.id = t.category_id
                 WHERE t.is_active = 1";
         $params = [];
         if ($entityId) {
@@ -102,6 +161,7 @@ final class BudgetService
 
     public static function findTemplate(int $id): ?array
     {
+        self::ensureSchema();
         $stmt = Database::pdo()->prepare('SELECT * FROM budget_templates WHERE id = :id LIMIT 1');
         $stmt->execute(['id' => $id]);
         $row = $stmt->fetch();
@@ -115,10 +175,11 @@ final class BudgetService
         self::ensurePeriod($periodYm);
 
         $sql = "SELECT i.*, e.name AS entity_name, a.name AS account_name,
-                       tx.id AS linked_tx_id
+                       c.name AS category_name, tx.id AS linked_tx_id
                 FROM budget_items i
                 INNER JOIN entities e ON e.id = i.entity_id
                 LEFT JOIN accounts a ON a.id = i.account_id
+                LEFT JOIN transaction_categories c ON c.id = i.category_id
                 LEFT JOIN transactions tx ON tx.id = i.transaction_id
                 WHERE i.period_ym = :p";
         $params = ['p' => $periodYm];
@@ -225,10 +286,10 @@ final class BudgetService
                 $pdo->prepare(
                     'INSERT INTO transactions
                      (entity_id, account_id, type, occurred_at, currency_code, amount, description,
-                      origin, metadata_json, created_by)
+                      category_id, origin, metadata_json, created_by)
                      VALUES
                      (:entity_id, :account_id, \'expense\', :occurred_at, :currency_code, :amount, :description,
-                      \'manual\', :metadata_json, :created_by)'
+                      :category_id, \'manual\', :metadata_json, :created_by)'
                 )->execute([
                     'entity_id' => (int) $item['entity_id'],
                     'account_id' => $accountId,
@@ -236,6 +297,7 @@ final class BudgetService
                     'currency_code' => (string) $item['currency_code'],
                     'amount' => $payAmount,
                     'description' => mb_substr($description, 0, 255),
+                    'category_id' => !empty($item['category_id']) ? (int) $item['category_id'] : null,
                     'metadata_json' => json_encode([
                         'budget_item_id' => $itemId,
                         'budget_template_id' => (int) $item['template_id'],

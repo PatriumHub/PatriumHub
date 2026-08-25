@@ -171,8 +171,10 @@ $hasByEntity = count($byEntityLabels) > 0 && array_sum($byEntityValues) > 0.009;
                         <td><?= e($acc['entity_name']) ?></td>
                         <td class="num"><?= $hide ? '••••' : e(money($acc['balance'], $acc['currency_code'])) ?></td>
                         <td class="actions">
-                            <a href="<?= e(url('/cuentas/' . $acc['id'] . '/editar')) ?>">Editar</a>
-                            <a href="<?= e(url('/movimientos/nuevo?account_id=' . $acc['id'] . '&entity_id=' . $acc['entity_id'])) ?>">Movimiento</a>
+                            <div class="row-icon-actions">
+                                <?= icon_action_link(url('/cuentas/' . $acc['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <?= icon_action_link(url('/movimientos/nuevo?account_id=' . $acc['id'] . '&entity_id=' . $acc['entity_id']), 'plus', 'Movimiento') ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>

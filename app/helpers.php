@@ -365,3 +365,40 @@ function nav_active(string $prefix, bool $exact = false): string
     }
     return ($path === $prefix || str_starts_with($path, $prefix . '/')) ? ' is-active' : '';
 }
+
+/** SVG inline para botones de acción en tablas. */
+function ui_icon(string $name): string
+{
+    $svg = match ($name) {
+        'edit' => '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+        'trash' => '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>',
+        'eye' => '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+        'plus' => '<path d="M12 5v14"/><path d="M5 12h14"/>',
+        'skip' => '<circle cx="12" cy="12" r="9"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/>',
+        'undo' => '<path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/>',
+        'pay' => '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+        'link' => '<path d="M10 13a5 5 0 0 0 7.07 0l1.41-1.41a5 5 0 0 0-7.07-7.07L10 5"/><path d="M14 11a5 5 0 0 0-7.07 0L5.5 12.4a5 5 0 0 0 7.07 7.07L14 18"/>',
+        default => '',
+    };
+    if ($svg === '') {
+        return '';
+    }
+    return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+        . $svg . '</svg>';
+}
+
+/** Link de acción con icono (tablas). */
+function icon_action_link(string $href, string $icon, string $label, string $class = ''): string
+{
+    $cls = trim('btn-icon ' . $class);
+    return '<a class="' . e($cls) . '" href="' . e($href) . '" title="' . e($label) . '" aria-label="' . e($label) . '">'
+        . ui_icon($icon) . '</a>';
+}
+
+/** Botón submit con icono (dentro de un form). */
+function icon_action_button(string $icon, string $label, string $class = 'danger'): string
+{
+    $cls = trim('btn-icon ' . $class);
+    return '<button type="submit" class="' . e($cls) . '" title="' . e($label) . '" aria-label="' . e($label) . '">'
+        . ui_icon($icon) . '</button>';
+}

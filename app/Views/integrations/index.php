@@ -71,10 +71,12 @@
                         <td><span class="badge <?= e($badge) ?>"><?= e($status) ?></span></td>
                         <td><?= e($row['last_sync_at'] ?? 'Nunca') ?></td>
                         <td class="actions">
-                            <a href="<?= e(url('/integraciones/' . $row['id'])) ?>">Ver</a>
-                            <?php if ($status !== 'revoked'): ?>
-                                <a href="<?= e(url('/integraciones/' . $row['id'] . '/editar')) ?>">Editar</a>
-                            <?php endif; ?>
+                            <div class="row-icon-actions">
+                                <?= icon_action_link(url('/integraciones/' . $row['id']), 'eye', 'Ver') ?>
+                                <?php if ($status !== 'revoked'): ?>
+                                    <?= icon_action_link(url('/integraciones/' . $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>

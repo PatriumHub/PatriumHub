@@ -124,7 +124,7 @@ $chartPayload = [
                             <td><?= count($group['items']) ?></td>
                             <td class="num"><?= e(money($group['total'], $group['currency_code'])) ?></td>
                             <td class="actions">
-                                <a href="<?= e(url('/presupuestos?entity_id=' . (int) $group['entity_id'])) ?>">Ver</a>
+                                <?= icon_action_link(url('/presupuestos?entity_id=' . (int) $group['entity_id']), 'eye', 'Ver') ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -154,7 +154,7 @@ $chartPayload = [
                             <td><?= e($ltypeLabel) ?></td>
                             <td class="num"><?= e(money($row['outstanding_amount'], $row['currency_code'])) ?></td>
                             <td><span class="badge"><?= e($row['status']) ?></span></td>
-                            <td class="actions"><a href="<?= e(url('/pasivos/' . $row['id'] . '/editar')) ?>">Editar</a></td>
+                            <td class="actions"><?= icon_action_link(url('/pasivos/' . $row['id'] . '/editar'), 'edit', 'Editar') ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

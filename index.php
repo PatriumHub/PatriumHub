@@ -128,6 +128,7 @@ $router->get('/movimientos/nuevo', [TransactionController::class, 'create']);
 $router->post('/movimientos', [TransactionController::class, 'store']);
 $router->get('/movimientos/{id}/editar', [TransactionController::class, 'edit']);
 $router->post('/movimientos/{id}', [TransactionController::class, 'update']);
+$router->post('/movimientos/{id}/eliminar', [TransactionController::class, 'destroy']);
 
 $router->get('/configuracion', [SettingsController::class, 'index']);
 $router->post('/configuracion/perfil', [SettingsController::class, 'updateProfile']);

@@ -33,6 +33,15 @@
             <input name="due_day" type="number" min="1" max="31" value="<?= e((string) ($i['due_day'] ?? '10')) ?>">
             <span class="hint" style="margin:0">Ej. 10 = vence el día 10 de cada mes</span>
         </label>
+        <label>Categoría
+            <select name="category_id">
+                <option value="">— sin categoría —</option>
+                <?php foreach (($categories ?? []) as $cat): ?>
+                    <option value="<?= (int) $cat['id'] ?>"<?= selected($i['category_id'] ?? '', $cat['id']) ?>><?= e($cat['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <span class="hint" style="margin:0">Las mismas de Movimientos; al pagar se asigna al egreso</span>
+        </label>
         <label>Cuenta sugerida para pagar
             <select name="suggested_account_id" id="bt-account">
                 <option value="">— ninguna —</option>

@@ -111,10 +111,10 @@ $years = is_array($client['years'] ?? null) ? $client['years'] : [];
                         </td>
                         <td><?= e(substr((string) ($doc['created_at'] ?? ''), 0, 16)) ?></td>
                         <td class="actions">
-                            <form method="post" action="<?= e(url($clientPath . '/documentos/' . (int) $doc['id'] . '/eliminar')) ?>" class="inline"
+                            <form method="post" action="<?= e(url($clientPath . '/documentos/' . (int) $doc['id'] . '/eliminar')) ?>"
                                   onsubmit="return confirm('¿Eliminar este documento?');">
                                 <?= csrf_field() ?>
-                                <button type="submit" class="btn danger sm">Eliminar</button>
+                                <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
                             </form>
                         </td>
                     </tr>

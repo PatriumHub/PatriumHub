@@ -17,6 +17,7 @@
       root.setAttribute('data-theme', next);
       try { localStorage.setItem(themeKey, next); } catch (_) {}
       syncThemeLabel();
+      window.dispatchEvent(new CustomEvent('patrium:theme', { detail: { theme: next } }));
     });
   });
 
@@ -100,12 +101,20 @@
     }
     if (data.hide) return;
 
+    const wipe = (el) => {
+      if (!el) return;
+      const existing = typeof Chart.getChart === 'function' ? Chart.getChart(el) : null;
+      if (existing) existing.destroy();
+    };
+    document.querySelectorAll('canvas[id^="chart"]').forEach(wipe);
+
     const isDark = root.getAttribute('data-theme') === 'dark';
     const colors = isDark
       ? ['#10b981', '#60a5fa', '#34d399', '#f87171', '#a78bfa', '#22d3ee', '#fb923c']
       : ['#047857', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
     const grid = isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(15, 23, 42, 0.08)';
     const tick = isDark ? '#94a3b8' : '#64748b';
+    const tickStrong = isDark ? '#e8eef6' : '#1a202c';
     const base = data.baseUrl || (window.location.pathname.replace(/\/[^/]*$/, '') + '/index.php');
 
     const go = (route, params = {}) => {
@@ -134,7 +143,7 @@
         legend: {
           position: 'bottom',
           labels: {
-            color: '#475569',
+            color: tick,
             boxWidth: 10,
             padding: 14,
             font: { size: 12, weight: '500' },
@@ -265,7 +274,7 @@
               beginAtZero: true,
             },
             y: {
-              ticks: { color: '#1a202c', font: { size: 13, weight: '500' } },
+              ticks: { color: tickStrong, font: { size: 13, weight: '500' } },
               grid: { display: false },
             },
           },
@@ -462,7 +471,7 @@
             legend: {
               position: 'bottom',
               labels: {
-                color: '#1a202c',
+                color: tickStrong,
                 boxWidth: 14,
                 boxHeight: 3,
                 padding: 16,
@@ -644,7 +653,7 @@
               grid: { color: grid },
               beginAtZero: true,
             },
-            y: { ticks: { color: '#1a202c' }, grid: { display: false } },
+            y: { ticks: { color: tickStrong }, grid: { display: false } },
           },
         },
       });
@@ -697,7 +706,7 @@
           plugins: { legend: { display: false } },
           scales: {
             x: { ticks: { color: tick, callback: moneyTick }, grid: { color: grid }, beginAtZero: true },
-            y: { ticks: { color: '#1a202c' }, grid: { display: false } },
+            y: { ticks: { color: tickStrong }, grid: { display: false } },
           },
         },
       });
@@ -969,4 +978,5 @@
   } else {
     window.setTimeout(bootCharts, 50);
   }
+  window.addEventListener('patrium:theme', () => bootCharts());
 })();

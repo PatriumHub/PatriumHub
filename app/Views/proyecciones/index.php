@@ -228,7 +228,7 @@ $scopeLabels = [
                                 <td class="num"><?= e(money($s['expense_annual'] ?? 0, $currency)) ?></td>
                                 <td class="num"><?= e(money($s['savings_annual'] ?? 0, $currency)) ?></td>
                                 <td class="num"><strong><?= e(money($s['balance_annual'] ?? 0, $currency)) ?></strong></td>
-                                <td class="actions"><a href="<?= e(url($row['href'])) ?>">Ver</a></td>
+                                <td class="actions"><?= icon_action_link(url($row['href']), 'eye', 'Ver') ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>
@@ -269,7 +269,7 @@ $scopeLabels = [
                                 <td class="num"><?= e(money($s['expense_annual'] ?? 0, $currency)) ?></td>
                                 <td class="num"><?= e(money($s['savings_annual'] ?? 0, $currency)) ?></td>
                                 <td class="num"><strong><?= e(money($s['balance_annual'] ?? 0, $currency)) ?></strong></td>
-                                <td class="actions"><a href="<?= e(url($row['href'])) ?>">Ver</a></td>
+                                <td class="actions"><?= icon_action_link(url($row['href']), 'eye', 'Ver') ?></td>
                             </tr>
                         <?php endforeach; ?>
                         </tbody>

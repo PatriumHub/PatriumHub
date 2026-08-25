@@ -101,7 +101,7 @@ $fpMonths = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct
                             </td>
                             <?php if ($canWrite): ?>
                             <td class="actions">
-                                <a href="<?= e(url('/participaciones/' . $o['id'] . '/editar')) ?>">Editar</a>
+                                <?= icon_action_link(url('/participaciones/' . $o['id'] . '/editar'), 'edit', 'Editar') ?>
                             </td>
                             <?php endif; ?>
                         </tr>

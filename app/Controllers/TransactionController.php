@@ -277,6 +277,44 @@ final class TransactionController
         }
     }
 
+    public static function destroy(string $id): void
+    {
+        Auth::requireAdminArea();
+        require_csrf();
+        $txId = (int) $id;
+        $before = self::find($txId);
+        if (!$before) {
+            flash('error', 'Movimiento no encontrado.');
+            redirect('/movimientos');
+        }
+
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $oldPayload = self::payloadFromRow($before);
+            self::applyBalanceEffects($pdo, $oldPayload, -1.0);
+
+            // Si era el pago de un presupuesto, vuelve a pendiente.
+            $pdo->prepare(
+                "UPDATE budget_items
+                 SET status = 'pending', transaction_id = NULL, paid_amount = NULL, paid_at = NULL,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE transaction_id = :tx AND status = 'paid'"
+            )->execute(['tx' => $txId]);
+
+            $pdo->prepare('DELETE FROM transactions WHERE id = :id')->execute(['id' => $txId]);
+
+            $pdo->commit();
+            AuditService::log('delete', 'transaction', $txId, 'Eliminación movimiento', $before, null);
+            flash('success', 'Movimiento eliminado. Los saldos se recalcularon.');
+            redirect('/movimientos');
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            flash('error', 'No se pudo eliminar: ' . $e->getMessage());
+            redirect('/movimientos');
+        }
+    }
+
     /** @return array<string,mixed>|null */
     private static function payloadFromRequest(): ?array
     {
@@ -382,7 +420,7 @@ final class TransactionController
             self::adjustBalance($pdo, $fromId, $amount * $sign);
         } elseif ($type === 'collection' && $fromId) {
             self::adjustBalance($pdo, $fromId, $amount * $sign);
-        } elseif ($type === 'expense' && $fromId) {
+        } elseif (($type === 'expense' || $type === 'payment') && $fromId) {
             self::adjustBalance($pdo, $fromId, -$amount * $sign);
         } elseif ($type === 'adjustment' && $fromId) {
             $dir = (($payload['adjustment_direction'] ?? 'plus') === 'minus') ? -1.0 : 1.0;

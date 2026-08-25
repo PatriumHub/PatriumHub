@@ -92,7 +92,7 @@ $companies = array_values(array_filter($allEntities, static fn ($e) => ($e['type
                             <td><?= ($u['role'] ?? '') === 'admin' ? 'Admin' : 'Limitado' ?></td>
                             <td><?= !empty($u['is_active']) ? 'Activo' : 'Inactivo' ?></td>
                             <td class="actions">
-                                <a href="<?= e(url('/configuracion?tab=usuarios&edit=' . (int) $u['id'])) ?>">Editar</a>
+                                <?= icon_action_link(url('/configuracion?tab=usuarios&edit=' . (int) $u['id']), 'edit', 'Editar') ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>

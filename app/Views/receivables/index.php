@@ -124,10 +124,12 @@ $statusLabels = $statusLabels ?? [
                         <td data-sort="<?= e($due !== '' ? $due : '9999-99-99') ?>"><?= e($due !== '' ? $due : '—') ?></td>
                         <td data-sort="<?= (int) ($statusOrder[$st] ?? 9) ?>"><span class="badge"><?= e($statusLabels[$st] ?? $st) ?></span></td>
                         <td class="actions">
-                            <a href="<?= e(url('/cobrables/' . $row['id'] . '/editar')) ?>">Editar</a>
-                            <?php if ($st !== 'paid'): ?>
-                                · <a href="<?= e(url('/cobrables/' . $row['id'] . '/pagar')) ?>">Cobrar</a>
-                            <?php endif; ?>
+                            <div class="row-icon-actions">
+                                <?= icon_action_link(url('/cobrables/' . $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <?php if ($st !== 'paid'): ?>
+                                    <?= icon_action_link(url('/cobrables/' . $row['id'] . '/pagar'), 'pay', 'Cobrar', 'warn') ?>
+                                <?php endif; ?>
+                            </div>
                         </td>
                     </tr>
                 <?php endforeach; ?>

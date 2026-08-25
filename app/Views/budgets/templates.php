@@ -77,11 +77,12 @@ $chartsPayload = [];
                                 <thead>
                                 <tr>
                                     <th class="th-sort" data-sort="text" data-col="0" scope="col">Nombre <span class="sort-ind" aria-hidden="true"></span></th>
-                                    <th class="th-sort num" data-sort="num" data-col="1" scope="col">Monto <span class="sort-ind" aria-hidden="true"></span></th>
-                                    <th class="th-sort num" data-sort="num" data-col="2" scope="col">% <span class="sort-ind" aria-hidden="true"></span></th>
-                                    <th class="th-sort num" data-sort="num" data-col="3" scope="col">Día vto. <span class="sort-ind" aria-hidden="true"></span></th>
-                                    <th class="th-sort" data-sort="text" data-col="4" scope="col">Cuenta sugerida <span class="sort-ind" aria-hidden="true"></span></th>
-                                    <th class="th-sort" data-sort="text" data-col="5" scope="col">Estado <span class="sort-ind" aria-hidden="true"></span></th>
+                                    <th class="th-sort" data-sort="text" data-col="1" scope="col">Categoría <span class="sort-ind" aria-hidden="true"></span></th>
+                                    <th class="th-sort num" data-sort="num" data-col="2" scope="col">Monto <span class="sort-ind" aria-hidden="true"></span></th>
+                                    <th class="th-sort num" data-sort="num" data-col="3" scope="col">% <span class="sort-ind" aria-hidden="true"></span></th>
+                                    <th class="th-sort num" data-sort="num" data-col="4" scope="col">Día vto. <span class="sort-ind" aria-hidden="true"></span></th>
+                                    <th class="th-sort" data-sort="text" data-col="5" scope="col">Cuenta sugerida <span class="sort-ind" aria-hidden="true"></span></th>
+                                    <th class="th-sort" data-sort="text" data-col="6" scope="col">Estado <span class="sort-ind" aria-hidden="true"></span></th>
                                     <th></th>
                                 </tr>
                                 </thead>
@@ -95,17 +96,20 @@ $chartsPayload = [];
                                     ?>
                                     <tr>
                                         <td data-sort="<?= e(mb_strtolower((string) $row['name'])) ?>"><?= e($row['name']) ?></td>
+                                        <td data-sort="<?= e(mb_strtolower((string) ($row['category_name'] ?? ''))) ?>"><?= e($row['category_name'] ?? '—') ?></td>
                                         <td class="num" data-sort="<?= e((string) $amt) ?>"><?= e(money($row['amount'], $row['currency_code'])) ?></td>
                                         <td class="num" data-sort="<?= e((string) $pct) ?>"><?= $amt >= 0.005 ? e(number_format($pct, 1, ',', '.') . '%') : '—' ?></td>
                                         <td class="num" data-sort="<?= e((string) (int) $row['due_day']) ?>"><?= (int) $row['due_day'] ?></td>
                                         <td data-sort="<?= e(mb_strtolower((string) ($row['account_name'] ?? ''))) ?>"><?= e($row['account_name'] ?? '—') ?></td>
                                         <td data-sort="<?= e(mb_strtolower($statusLabel)) ?>"><?= e($statusLabel) ?></td>
                                         <td class="actions">
-                                            <a href="<?= e(url('/presupuestos/plantillas/' . (int) $row['id'] . '/editar')) ?>">Editar</a>
-                                            <form method="post" action="<?= e(url('/presupuestos/plantillas/' . (int) $row['id'] . '/eliminar')) ?>" class="inline" onsubmit="return confirm('¿Sacar este gasto del grupo? Se borran pendientes; los pagos ya hechos se mantienen y no se regenera.');">
-                                                <?= csrf_field() ?>
-                                                <button type="submit" class="btn danger sm">Eliminar</button>
-                                            </form>
+                                            <div class="row-icon-actions">
+                                                <?= icon_action_link(url('/presupuestos/plantillas/' . (int) $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                                <form method="post" action="<?= e(url('/presupuestos/plantillas/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Sacar este gasto del grupo? Se borran pendientes; los pagos ya hechos se mantienen y no se regenera.');">
+                                                    <?= csrf_field() ?>
+                                                    <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -146,14 +150,30 @@ $chartsPayload = [];
 <script type="application/json" id="bg-charts-data"><?= json_encode(['hide' => false, 'charts' => $chartsPayload], JSON_UNESCAPED_UNICODE) ?></script>
 <script>
 (function () {
-  function boot() {
+  function wipe(el) {
+    if (!el || typeof Chart === 'undefined') return;
+    var existing = typeof Chart.getChart === 'function' ? Chart.getChart(el) : null;
+    if (existing) existing.destroy();
+    delete el.dataset.ready;
+  }
+
+  function boot(force) {
     if (typeof Chart === 'undefined') return false;
     var raw = document.getElementById('bg-charts-data');
     if (!raw) return true;
     var payload;
     try { payload = JSON.parse(raw.textContent || '{}'); } catch (_) { return true; }
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var tick = isDark ? '#94a3b8' : '#64748b';
+    var tickStrong = isDark ? '#e8eef6' : '#1a202c';
+    var grid = isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(15, 23, 42, 0.08)';
     (payload.charts || []).forEach(function (c) {
       var el = document.getElementById(c.id);
+      var rankEl = document.getElementById(c.id + '-rank');
+      if (force) {
+        wipe(el);
+        wipe(rankEl);
+      }
       if (!el || el.dataset.ready === '1') return;
       var vals = (c.values || []).map(Number);
       var total = vals.reduce(function (a, b) { return a + Math.max(0, b); }, 0);
@@ -188,7 +208,7 @@ $chartsPayload = [];
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { color: '#475569', boxWidth: 10, font: { size: 11 }, padding: 10 }
+              labels: { color: tick, boxWidth: 10, font: { size: 11 }, padding: 10 }
             },
             tooltip: {
               callbacks: {
@@ -205,7 +225,6 @@ $chartsPayload = [];
       });
       el.dataset.ready = '1';
 
-      var rankEl = document.getElementById(c.id + '-rank');
       if (!rankEl || rankEl.dataset.ready === '1') return;
       var ranked = baseLabels.map(function (name, i) {
         return {
@@ -248,13 +267,13 @@ $chartsPayload = [];
               beginAtZero: true,
               max: 100,
               ticks: {
-                color: '#64748b',
+                color: tick,
                 callback: function (v) { return v + '%'; }
               },
-              grid: { color: 'rgba(15, 23, 42, 0.08)' }
+              grid: { color: grid }
             },
             y: {
-              ticks: { color: '#1a202c', font: { size: 11 } },
+              ticks: { color: tickStrong, font: { size: 11 } },
               grid: { display: false }
             }
           }
@@ -264,6 +283,7 @@ $chartsPayload = [];
     });
     return true;
   }
+  window.addEventListener('patrium:theme', function () { boot(true); });
   if (boot()) return;
   window.addEventListener('load', function () { boot(); });
   var n = 0;

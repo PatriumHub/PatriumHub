@@ -149,10 +149,12 @@ $net = (float) ($summary['net_worth'] ?? 0);
                             <td class="num"><?= e(money($cl['value_total'] ?? 0, $currency)) ?></td>
                             <td class="actions">
                                 <?php if (!empty($cl['id'])): ?>
-                                    <a href="<?= e(url($companyPath . '/clientes/' . (int) $cl['id'])) ?>">Ver</a>
-                                    <?php if ($canWrite): ?>
-                                        · <a href="<?= e(url($companyPath . '/clientes/' . (int) $cl['id'] . '/editar')) ?>">Ficha</a>
-                                    <?php endif; ?>
+                                    <div class="row-icon-actions">
+                                        <?= icon_action_link(url($companyPath . '/clientes/' . (int) $cl['id']), 'eye', 'Ver') ?>
+                                        <?php if ($canWrite): ?>
+                                            <?= icon_action_link(url($companyPath . '/clientes/' . (int) $cl['id'] . '/editar'), 'edit', 'Ficha') ?>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php else: ?>
                                     —
                                 <?php endif; ?>
@@ -456,7 +458,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                             <td><?= e($o['owner_name']) ?></td>
                             <td class="num"><?= e(number_format((float) $o['ownership_pct'], 2, ',', '.')) ?>%</td>
                             <?php if ($canWrite): ?>
-                            <td class="actions"><a href="<?= e(url('/participaciones/' . $o['id'] . '/editar')) ?>">Editar</a></td>
+                            <td class="actions"><?= icon_action_link(url('/participaciones/' . $o['id'] . '/editar'), 'edit', 'Editar') ?></td>
                             <?php endif; ?>
                         </tr>
                     <?php endforeach; ?>
@@ -965,7 +967,7 @@ $net = (float) ($summary['net_worth'] ?? 0);
                                 <td><?= e($r['status']) ?></td>
                                 <td><?= e($r['last_sync_at'] ?? 'Nunca') ?></td>
                                 <?php if ($canWrite): ?>
-                                <td class="actions"><a href="<?= e(url('/integraciones/' . $r['id'])) ?>">Ver</a></td>
+                                <td class="actions"><?= icon_action_link(url('/integraciones/' . $r['id']), 'eye', 'Ver') ?></td>
                                 <?php endif; ?>
                             <?php endif; ?>
                         </tr>

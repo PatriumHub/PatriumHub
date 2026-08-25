@@ -197,15 +197,13 @@ $chartPayload = [
                         <td><?= (int) $row['include_in_net_worth'] ? 'Sí' : 'No' ?></td>
                         <td class="actions col-actions">
                             <div class="row-actions">
-                                <a class="btn ghost sm" href="<?= e(url('/cuentas/' . $row['id'] . '/editar')) ?>">Editar</a>
-                                <a class="btn ghost sm" href="<?= e(url('/movimientos/nuevo?account_id=' . (int) $row['id'] . '&entity_id=' . (int) $row['entity_id'])) ?>">Movimiento</a>
+                                <?= icon_action_link(url('/cuentas/' . $row['id'] . '/editar'), 'edit', 'Editar') ?>
+                                <?= icon_action_link(url('/movimientos/nuevo?account_id=' . (int) $row['id'] . '&entity_id=' . (int) $row['entity_id']), 'plus', 'Movimiento') ?>
                                 <?php if (abs((float) ($row['balance'] ?? 0)) <= 0.009 && abs((float) ($row['balance_held'] ?? 0)) <= 0.009): ?>
                                     <form method="post" action="<?= e(url('/cuentas/' . (int) $row['id'] . '/eliminar')) ?>" onsubmit="return confirm('¿Eliminar esta cuenta? No se puede deshacer.');">
                                         <?= csrf_field() ?>
-                                        <button type="submit" class="btn danger sm">Eliminar</button>
+                                        <?= icon_action_button('trash', 'Eliminar', 'danger') ?>
                                     </form>
-                                <?php else: ?>
-                                    <span class="slot-empty" aria-hidden="true">—</span>
                                 <?php endif; ?>
                             </div>
                         </td>

@@ -87,6 +87,7 @@ final class BudgetController
                  ORDER BY e.name, a.name"
             )->fetchAll(),
             'currencies' => Catalog::currencies(),
+            'categories' => Catalog::transactionCategories(),
             'error' => flash('error'),
         ]);
     }
@@ -103,10 +104,10 @@ final class BudgetController
 
         Database::pdo()->prepare(
             'INSERT INTO budget_templates
-             (entity_id, name, amount, currency_code, frequency, due_day, suggested_account_id,
+             (entity_id, name, amount, currency_code, frequency, due_day, category_id, suggested_account_id,
               is_active, include_in_net_worth, notes)
              VALUES
-             (:entity_id, :name, :amount, :currency_code, :frequency, :due_day, :suggested_account_id,
+             (:entity_id, :name, :amount, :currency_code, :frequency, :due_day, :category_id, :suggested_account_id,
               :is_active, :include_in_net_worth, :notes)'
         )->execute($payload);
         $id = (int) Database::pdo()->lastInsertId();
@@ -141,6 +142,7 @@ final class BudgetController
                  ORDER BY e.name, a.name"
             )->fetchAll(),
             'currencies' => Catalog::currencies(),
+            'categories' => Catalog::transactionCategories(),
             'error' => flash('error'),
         ]);
     }
@@ -164,13 +166,24 @@ final class BudgetController
         Database::pdo()->prepare(
             'UPDATE budget_templates
              SET entity_id = :entity_id, name = :name, amount = :amount, currency_code = :currency_code,
-                 frequency = :frequency, due_day = :due_day, suggested_account_id = :suggested_account_id,
+                 frequency = :frequency, due_day = :due_day, category_id = :category_id,
+                 suggested_account_id = :suggested_account_id,
                  is_active = :is_active, include_in_net_worth = :include_in_net_worth, notes = :notes
              WHERE id = :id'
         )->execute($payload);
 
+        // Propaga categoría a ítems pendientes (los ya pagados no se tocan).
+        Database::pdo()->prepare(
+            "UPDATE budget_items
+             SET category_id = :c, updated_at = CURRENT_TIMESTAMP
+             WHERE template_id = :t AND status = 'pending'"
+        )->execute([
+            'c' => $payload['category_id'],
+            't' => $tplId,
+        ]);
+
         AuditService::log('update', 'budget_template', $tplId, 'Edición gasto', $before, BudgetService::findTemplate($tplId));
-        flash('success', 'Gasto actualizado. Los ítems del mes ya generados no se modifican solos.');
+        flash('success', 'Gasto actualizado. La categoría se aplica a ítems pendientes.');
         redirect('/presupuestos/plantillas');
     }
 
@@ -318,6 +331,16 @@ final class BudgetController
             }
         }
 
+        $categoryId = request_int('category_id');
+        if ($categoryId) {
+            Catalog::ensureTransactionCategories();
+            $chk = Database::pdo()->prepare('SELECT id FROM transaction_categories WHERE id = :id LIMIT 1');
+            $chk->execute(['id' => $categoryId]);
+            if (!$chk->fetchColumn()) {
+                $categoryId = null;
+            }
+        }
+
         return [
             'entity_id' => $entityId,
             'name' => $name,
@@ -325,6 +348,7 @@ final class BudgetController
             'currency_code' => post_string('currency_code', 'ARS') ?: 'ARS',
             'frequency' => 'monthly',
             'due_day' => $dueDay,
+            'category_id' => $categoryId,
             'suggested_account_id' => $accountId,
             'is_active' => bool_post('is_active') ? 1 : 0,
             'include_in_net_worth' => bool_post('include_in_net_worth') ? 1 : 0,

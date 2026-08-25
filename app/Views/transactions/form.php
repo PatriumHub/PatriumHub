@@ -75,6 +75,14 @@
         <?php endif; ?>
         <div class="full"><button type="submit"><?= $isEdit ? 'Guardar cambios' : 'Registrar' ?></button></div>
     </form>
+    <?php if ($isEdit): ?>
+        <form method="post" action="<?= e(url('/movimientos/' . (int) $i['id'] . '/eliminar')) ?>" class="panel mt"
+              onsubmit="return confirm('¿Eliminar este movimiento? Se recalculan los saldos de las cuentas.');">
+            <?= csrf_field() ?>
+            <p class="muted" style="margin:0 0 0.75rem">Si el movimiento está mal o es un duplicado, podés borrarlo. Los saldos se revierten.</p>
+            <button type="submit" class="btn danger">Eliminar movimiento</button>
+        </form>
+    <?php endif; ?>
 </section>
 <script>
 (() => {
