@@ -47,15 +47,39 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
     <div class="brand">
         <a href="<?= e(url($homeHref)) ?>"><?= e($appName) ?></a>
     </div>
-    <button type="button" class="theme-toggle theme-toggle--bar" aria-label="Cambiar a modo oscuro">
-        <svg class="theme-toggle__moon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M21 14.3A8.5 8.5 0 0 1 9.7 3 7 7 0 1 0 21 14.3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-        </svg>
-        <svg class="theme-toggle__sun" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
-            <path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-        </svg>
-    </button>
+    <div class="topbar-tools">
+        <?php if ($isAdmin): ?>
+        <form method="post" action="<?= e(url('/configuracion/ocultar-cifras')) ?>" class="inline">
+            <?= csrf_field() ?>
+            <button type="submit" class="privacy-toggle" aria-pressed="<?= $hideAmounts ? 'true' : 'false' ?>"
+                    title="<?= $hideAmounts ? 'Mostrar cifras' : 'Ocultar cifras' ?>"
+                    aria-label="<?= $hideAmounts ? 'Mostrar cifras' : 'Ocultar cifras' ?>">
+                <?php if ($hideAmounts): ?>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M10.6 5.2A9.6 9.6 0 0 1 12 5c5 0 9 4.5 9 7 0 .9-.5 2-1.4 3.1M6.3 6.9C3.9 8.4 3 10.4 3 12c0 2.5 4 7 9 7 1.6 0 3-.4 4.2-1"
+                              stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                        <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                <?php else: ?>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 12c0-2.5 4-7 9-7s9 4.5 9 7-4 7-9 7-9-4.5-9-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/>
+                    </svg>
+                <?php endif; ?>
+            </button>
+        </form>
+        <?php endif; ?>
+        <button type="button" class="theme-toggle theme-toggle--bar" aria-label="Cambiar a modo oscuro">
+            <svg class="theme-toggle__moon" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M21 14.3A8.5 8.5 0 0 1 9.7 3 7 7 0 1 0 21 14.3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>
+            <svg class="theme-toggle__sun" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/>
+                <path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+        </button>
+    </div>
     <button type="button" class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="topbar-panel" aria-label="Abrir menú">
         <span class="nav-toggle-bar" aria-hidden="true"></span>
         <span class="nav-toggle-bar" aria-hidden="true"></span>
@@ -102,12 +126,7 @@ $profileActive = nav_active('/configuracion') || nav_active('/integraciones');
                 </svg>
             </button>
             <?php if ($isAdmin): ?>
-            <form method="post" action="<?= e(url('/configuracion/ocultar-cifras')) ?>" class="inline" title="Ocultar/mostrar cifras">
-                <?= csrf_field() ?>
-                <button type="submit" class="linkish privacy-toggle" aria-pressed="<?= $hideAmounts ? 'true' : 'false' ?>">
-                    <?= $hideAmounts ? 'Mostrar cifras' : 'Ocultar cifras' ?>
-                </button>
-            </form>
+                <a class="userbox-link<?= e(nav_active('/reportes')) ?>" href="<?= e(url('/reportes/patrimonial')) ?>">Reporte</a>
             <?php endif; ?>
             <details class="nav-drop user-drop<?= $profileActive ? ' is-active' : '' ?>">
                 <summary><?= e($user['name'] ?? 'Perfil') ?></summary>

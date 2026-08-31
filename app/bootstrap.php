@@ -49,6 +49,7 @@ require_once __DIR__ . '/Services/PersonFinancialPlanService.php';
 require_once __DIR__ . '/Services/ProjectionsAggregateService.php';
 require_once __DIR__ . '/Services/FinancialGoalsService.php';
 require_once __DIR__ . '/Services/ExpenseAnalysisService.php';
+require_once __DIR__ . '/Services/PatrimonyReportService.php';
 
 foreach ([
     'AuthController',
@@ -73,6 +74,7 @@ foreach ([
     'ValuationController',
     'SavedViewController',
     'BudgetController',
+    'ReportController',
 ] as $controller) {
     require_once __DIR__ . '/Controllers/' . $controller . '.php';
 }
