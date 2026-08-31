@@ -14,8 +14,7 @@ $today = date('Y-m-d');
             <p class="lede">Costos fijos del mes. Pendientes = pasivo. Al pagar se crea el egreso.</p>
         </div>
         <div class="actions">
-            <a class="btn" href="<?= e(url('/presupuestos/plantillas/nueva')) ?>">+ Gasto</a>
-            <a class="btn ghost" href="<?= e(url('/presupuestos/plantillas')) ?>">Gastos agrupados</a>
+            <a class="btn" href="<?= e(url('/presupuestos/plantillas')) ?>">Presupuestos por grupos</a>
         </div>
     </div>
     <?php require __DIR__ . '/../partials/alerts.php'; ?>
@@ -64,12 +63,27 @@ $today = date('Y-m-d');
             <span class="stat-value" style="font-size:1.25rem"><?= e($period) ?></span>
         </div>
     </div>
+    <?php
+    $otherCurrencies = [];
+    foreach ($items as $row) {
+        $rowCur = strtoupper(trim((string) ($row['currency_code'] ?? 'ARS'))) ?: 'ARS';
+        if ($rowCur !== strtoupper($currency)) {
+            $otherCurrencies[$rowCur] = true;
+        }
+    }
+    ?>
+    <?php if ($otherCurrencies !== []): ?>
+        <p class="muted" style="margin:0">
+            Los totales de arriba son solo en <?= e(strtoupper($currency)) ?>.
+            En la tabla también hay ítems en <?= e(implode(', ', array_keys($otherCurrencies))) ?>.
+        </p>
+    <?php endif; ?>
 
     <?php if ($items === []): ?>
         <?php
-        $message = 'Sin ítems en este período. Creá gastos activos; se generan el 1º de cada mes (o al entrar acá).';
-        $ctaHref = '/presupuestos/plantillas/nueva';
-        $ctaLabel = 'Crear gasto';
+        $message = 'Sin ítems en este período. Los gastos se definen por grupo y se generan el 1º de cada mes (o al entrar acá).';
+        $ctaHref = '/presupuestos/plantillas';
+        $ctaLabel = 'Presupuestos por grupos';
         require __DIR__ . '/../partials/empty.php';
         ?>
     <?php else: ?>
@@ -92,6 +106,12 @@ $today = date('Y-m-d');
                     $status = (string) ($row['status'] ?? 'pending');
                     $due = (string) ($row['due_date'] ?? '');
                     $overdue = $status === 'pending' && $due !== '' && $due < $today;
+                    $planned = (float) ($row['amount'] ?? 0);
+                    // En pagados manda lo liquidado: es lo que suman los totales de arriba.
+                    $effective = ($status === 'paid' && $row['paid_amount'] !== null)
+                        ? (float) $row['paid_amount']
+                        : $planned;
+                    $payDiff = $status === 'paid' && abs($effective - $planned) >= 0.005;
                     $statusOrder = match ($status) {
                         'pending' => 0,
                         'paid' => 1,
@@ -108,7 +128,12 @@ $today = date('Y-m-d');
                         <td data-sort="<?= e(mb_strtolower((string) ($row['category_name'] ?? ''))) ?>"><?= e($row['category_name'] ?? '—') ?></td>
                         <td data-sort="<?= e(mb_strtolower((string) $row['entity_name'])) ?>"><?= e($row['entity_name']) ?></td>
                         <td data-sort="<?= e($due) ?>"><?= e($due) ?></td>
-                        <td class="num" data-sort="<?= e((string) (float) $row['amount']) ?>"><?= e(money($row['amount'], $row['currency_code'])) ?></td>
+                        <td class="num" data-sort="<?= e((string) $effective) ?>">
+                            <?= e(money($effective, $row['currency_code'])) ?>
+                            <?php if ($payDiff): ?>
+                                <span class="muted" style="display:block;font-size:0.78rem">Plan: <?= e(money($planned, $row['currency_code'])) ?></span>
+                            <?php endif; ?>
+                        </td>
                         <td data-sort="<?= (int) $statusOrder ?>">
                             <?php if ($status === 'pending'): ?>
                                 <span class="badge">Pendiente</span>

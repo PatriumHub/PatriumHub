@@ -8,7 +8,7 @@ $chartsPayload = [];
 <section class="page">
     <div class="page-head">
         <div>
-            <h1>Gastos agrupados</h1>
+            <h1>Presupuestos por grupos</h1>
             <p class="lede">Todos los gastos fijos, agrupados por persona o empresa</p>
         </div>
         <div class="actions">
@@ -28,10 +28,18 @@ $chartsPayload = [];
     <?php else: ?>
         <?php foreach ($groups as $gi => $group): ?>
             <?php
-            $currency = strtoupper(trim((string) ($group['items'][0]['currency_code'] ?? 'ARS'))) ?: 'ARS';
+            $groupTotals = $group['totals'] ?? [];
+            if ($groupTotals === []) {
+                $groupTotals = ['ARS' => (float) ($group['total'] ?? 0)];
+            }
+            $currency = (string) array_key_first($groupTotals);
             $labels = [];
             $values = [];
             foreach ($group['items'] as $row) {
+                $rowCur = strtoupper(trim((string) ($row['currency_code'] ?? 'ARS'))) ?: 'ARS';
+                if ($rowCur !== $currency) {
+                    continue;
+                }
                 $amt = abs((float) ($row['amount'] ?? 0));
                 if ($amt < 0.005) {
                     continue;
@@ -62,7 +70,9 @@ $chartsPayload = [];
                         </p>
                     </div>
                     <div class="actions">
-                        <strong><?= e(money($group['total'], $currency)) ?></strong>
+                        <?php foreach ($groupTotals as $curCode => $curTotal): ?>
+                            <strong><?= e(money($curTotal, (string) $curCode)) ?></strong>
+                        <?php endforeach; ?>
                         <a class="btn ghost" href="<?= e(url('/presupuestos/plantillas/nueva?entity_id=' . (int) $group['entity_id'])) ?>">+ Gasto</a>
                         <form method="post" action="<?= e(url('/presupuestos/plantillas/grupo/' . (int) $group['entity_id'] . '/eliminar')) ?>" class="inline" onsubmit="return confirm(<?= json_encode('¿Eliminar todo el grupo de gastos de ' . $group['entity_name'] . "?\nSe sacan todos los gastos: pendientes se borran; pagos ya hechos se mantienen.", JSON_UNESCAPED_UNICODE) ?>);">
                             <?= csrf_field() ?>
@@ -90,15 +100,17 @@ $chartsPayload = [];
                                 <?php
                                 $groupTotal = array_sum($values);
                                 foreach ($group['items'] as $row):
+                                    $rowCur = strtoupper(trim((string) ($row['currency_code'] ?? 'ARS'))) ?: 'ARS';
                                     $amt = abs((float) ($row['amount'] ?? 0));
-                                    $pct = $groupTotal > 0.005 ? round(($amt / $groupTotal) * 100, 1) : 0;
+                                    $sameCur = $rowCur === $currency;
+                                    $pct = ($sameCur && $groupTotal > 0.005) ? round(($amt / $groupTotal) * 100, 1) : 0;
                                     $statusLabel = !empty($row['is_active']) ? 'Activo' : 'Inactivo';
                                     ?>
                                     <tr>
                                         <td data-sort="<?= e(mb_strtolower((string) $row['name'])) ?>"><?= e($row['name']) ?></td>
                                         <td data-sort="<?= e(mb_strtolower((string) ($row['category_name'] ?? ''))) ?>"><?= e($row['category_name'] ?? '—') ?></td>
                                         <td class="num" data-sort="<?= e((string) $amt) ?>"><?= e(money($row['amount'], $row['currency_code'])) ?></td>
-                                        <td class="num" data-sort="<?= e((string) $pct) ?>"><?= $amt >= 0.005 ? e(number_format($pct, 1, ',', '.') . '%') : '—' ?></td>
+                                        <td class="num" data-sort="<?= e((string) $pct) ?>"><?= ($sameCur && $amt >= 0.005) ? e(number_format($pct, 1, ',', '.') . '%') : '—' ?></td>
                                         <td class="num" data-sort="<?= e((string) (int) $row['due_day']) ?>"><?= (int) $row['due_day'] ?></td>
                                         <td data-sort="<?= e(mb_strtolower((string) ($row['account_name'] ?? ''))) ?>"><?= e($row['account_name'] ?? '—') ?></td>
                                         <td data-sort="<?= e(mb_strtolower($statusLabel)) ?>"><?= e($statusLabel) ?></td>

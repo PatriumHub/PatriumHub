@@ -50,14 +50,23 @@ final class BudgetController
                     'entity_type' => (string) ($row['entity_type'] ?? 'company'),
                     'items' => [],
                     'total' => 0.0,
+                    'totals' => [],
                 ];
             }
+            $cur = strtoupper(trim((string) ($row['currency_code'] ?? 'ARS'))) ?: 'ARS';
+            $amount = (float) ($row['amount'] ?? 0);
             $grouped[$eid]['items'][] = $row;
-            $grouped[$eid]['total'] += (float) ($row['amount'] ?? 0);
+            $grouped[$eid]['total'] += $amount;
+            $grouped[$eid]['totals'][$cur] = ($grouped[$eid]['totals'][$cur] ?? 0.0) + $amount;
         }
+        // Moneda dominante primero: es la que se usa para el gráfico y los %.
+        foreach ($grouped as &$g) {
+            arsort($g['totals']);
+        }
+        unset($g);
 
         view('budgets/templates', [
-            'title' => 'Gastos agrupados',
+            'title' => 'Presupuestos por grupos',
             'groups' => array_values($grouped),
             'success' => flash('success'),
             'error' => flash('error'),
@@ -172,18 +181,14 @@ final class BudgetController
              WHERE id = :id'
         )->execute($payload);
 
-        // Propaga categoría a ítems pendientes (los ya pagados no se tocan).
-        Database::pdo()->prepare(
-            "UPDATE budget_items
-             SET category_id = :c, updated_at = CURRENT_TIMESTAMP
-             WHERE template_id = :t AND status = 'pending'"
-        )->execute([
-            'c' => $payload['category_id'],
-            't' => $tplId,
-        ]);
+        // Reaplica monto, nombre, moneda, vencimiento y categoría sobre los ítems
+        // pendientes (incluido el mes actual). Los pagados y omitidos no se tocan.
+        $synced = BudgetService::syncPendingItems($tplId);
 
         AuditService::log('update', 'budget_template', $tplId, 'Edición gasto', $before, BudgetService::findTemplate($tplId));
-        flash('success', 'Gasto actualizado. La categoría se aplica a ítems pendientes.');
+        flash('success', $synced > 0
+            ? 'Gasto actualizado. Se aplicó a ' . $synced . ' ítem(s) pendiente(s).'
+            : 'Gasto actualizado.');
         redirect('/presupuestos/plantillas');
     }
 

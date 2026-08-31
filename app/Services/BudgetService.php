@@ -77,7 +77,54 @@ final class BudgetService
                 $created++;
             }
         }
+
+        // El mes vigente (y los futuros) siempre refleja la plantilla activa: así el total
+        // del período coincide con Presupuestos por grupos.
+        self::syncPendingItemsForPeriod($periodYm);
+
         return $created;
+    }
+
+    /**
+     * Reaplica las plantillas activas sobre los ítems pendientes de un período.
+     *
+     * Solo el mes actual y los futuros: los pagados y omitidos nunca se tocan, y los
+     * períodos pasados quedan congelados al importe con el que se facturaron.
+     *
+     * @return int ítems corregidos
+     */
+    public static function syncPendingItemsForPeriod(string $periodYm): int
+    {
+        $periodYm = self::normalizePeriod($periodYm);
+        if ($periodYm < date('Y-m')) {
+            return 0;
+        }
+        $stmt = Database::pdo()->prepare(
+            "UPDATE budget_items i
+             INNER JOIN budget_templates t ON t.id = i.template_id AND t.is_active = 1
+             SET i.entity_id = t.entity_id,
+                 i.name = t.name,
+                 i.amount = t.amount,
+                 i.currency_code = t.currency_code,
+                 i.category_id = t.category_id,
+                 i.account_id = t.suggested_account_id,
+                 i.include_in_net_worth = t.include_in_net_worth,
+                 i.due_date = DATE_ADD(
+                     CONCAT(:p1, '-01'),
+                     INTERVAL LEAST(GREATEST(t.due_day, 1), DAY(LAST_DAY(CONCAT(:p2, '-01')))) - 1 DAY
+                 ),
+                 i.updated_at = CURRENT_TIMESTAMP
+             WHERE i.period_ym = :p3
+               AND i.status = 'pending'
+               AND (i.amount <> t.amount
+                    OR i.name <> t.name
+                    OR i.currency_code <> t.currency_code
+                    OR i.entity_id <> t.entity_id
+                    OR NOT (i.category_id <=> t.category_id)
+                    OR NOT (i.account_id <=> t.suggested_account_id))"
+        );
+        $stmt->execute(['p1' => $periodYm, 'p2' => $periodYm, 'p3' => $periodYm]);
+        return $stmt->rowCount();
     }
 
     /** @param array<string,mixed> $template */
@@ -157,6 +204,63 @@ final class BudgetService
         $stmt = Database::pdo()->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Reaplica la plantilla sobre sus ítems pendientes del mes actual y de meses futuros
+     * (monto, nombre, moneda, vencimiento, entidad, categoría y cuenta sugerida).
+     *
+     * No toca pagados ni omitidos: un cambio de precio (inflación) rige de acá en adelante,
+     * no reescribe lo ya liquidado. Los pendientes atrasados tampoco se tocan: son deuda
+     * al importe con el que se facturaron.
+     *
+     * @return int ítems actualizados
+     */
+    public static function syncPendingItems(int $templateId): int
+    {
+        $tpl = self::findTemplate($templateId);
+        if (!$tpl) {
+            return 0;
+        }
+
+        $pdo = Database::pdo();
+        $stmt = $pdo->prepare(
+            "SELECT id, period_ym FROM budget_items
+             WHERE template_id = :t AND status = 'pending' AND period_ym >= :cur"
+        );
+        $stmt->execute(['t' => $templateId, 'cur' => date('Y-m')]);
+        $rows = $stmt->fetchAll();
+        if (!$rows) {
+            return 0;
+        }
+
+        $dueDay = max(1, min(31, (int) ($tpl['due_day'] ?? 1)));
+        $upd = $pdo->prepare(
+            'UPDATE budget_items
+             SET entity_id = :entity_id, name = :name, amount = :amount,
+                 currency_code = :currency_code, due_date = :due_date,
+                 category_id = :category_id, account_id = :account_id,
+                 include_in_net_worth = :include_in_net_worth, updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $upd->execute([
+                'entity_id' => (int) $tpl['entity_id'],
+                'name' => (string) $tpl['name'],
+                'amount' => round((float) $tpl['amount'], 2),
+                'currency_code' => (string) ($tpl['currency_code'] ?? 'ARS'),
+                'due_date' => self::dueDateForPeriod((string) $row['period_ym'], $dueDay),
+                'category_id' => !empty($tpl['category_id']) ? (int) $tpl['category_id'] : null,
+                'account_id' => $tpl['suggested_account_id'] !== null
+                    ? (int) $tpl['suggested_account_id']
+                    : null,
+                'include_in_net_worth' => (int) ($tpl['include_in_net_worth'] ?? 1),
+                'id' => (int) $row['id'],
+            ]);
+        }
+
+        return count($rows);
     }
 
     public static function findTemplate(int $id): ?array
