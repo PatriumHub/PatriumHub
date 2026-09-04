@@ -11,10 +11,13 @@ final class Auth
         }
 
         $secure = self::cookieSecure();
-        $lifetime = (int) app_config('session_lifetime', 28800);
+        $lifetime = (int) app_config('session_lifetime', 86400);
         if ($lifetime < 300) {
             $lifetime = 300;
         }
+
+        // Que el GC del servidor no borre el archivo de sesión antes que expire la cookie.
+        ini_set('session.gc_maxlifetime', (string) $lifetime);
 
         session_name($name);
         session_set_cookie_params([
@@ -33,7 +36,7 @@ final class Auth
             'use_only_cookies' => true,
         ]);
 
-        self::enforceIdleTimeout((int) app_config('session_idle', 7200));
+        self::enforceIdleTimeout((int) app_config('session_idle', 86400), $lifetime);
     }
 
     public static function attempt(string $email, string $password): bool
@@ -222,7 +225,12 @@ final class Auth
         return $https;
     }
 
-    private static function enforceIdleTimeout(int $idleSeconds): void
+    /**
+     * Cierra la sesión si pasó más de `$idleSeconds` sin actividad.
+     * Si sigue activa, renueva `_last_activity` y la cookie para que el plazo
+     * de 24 h corra desde la última visita (no desde el login original).
+     */
+    private static function enforceIdleTimeout(int $idleSeconds, int $cookieLifetime): void
     {
         if ($idleSeconds <= 0 || !isset($_SESSION['user'])) {
             return;
@@ -233,6 +241,28 @@ final class Auth
             return;
         }
         $_SESSION['_last_activity'] = time();
+        self::refreshSessionCookie($cookieLifetime);
+    }
+
+    /** Reenvía la cookie de sesión con expires renovado (ventana deslizante). */
+    private static function refreshSessionCookie(int $lifetime): void
+    {
+        if ($lifetime <= 0 || session_status() !== PHP_SESSION_ACTIVE) {
+            return;
+        }
+        $params = session_get_cookie_params();
+        $options = [
+            'expires' => time() + $lifetime,
+            'path' => (string) ($params['path'] ?? '/'),
+            'secure' => (bool) ($params['secure'] ?? false),
+            'httponly' => (bool) ($params['httponly'] ?? true),
+            'samesite' => (string) ($params['samesite'] ?? 'Lax'),
+        ];
+        $domain = (string) ($params['domain'] ?? '');
+        if ($domain !== '') {
+            $options['domain'] = $domain;
+        }
+        setcookie(session_name(), session_id(), $options);
     }
 
     private static function allowLoginAttempt(): bool

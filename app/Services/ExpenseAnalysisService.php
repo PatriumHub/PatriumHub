@@ -82,14 +82,6 @@ final class ExpenseAnalysisService
         $topConcepts = self::topConcepts($currency, $from, $to, $entityIds, 12);
         $splitBudget = self::budgetLinkedSplit($currency, $from, $to, $entityIds);
         $ticket = self::ticketStats($currency, $from, $to, $entityIds);
-        $alerts = self::alerts(
-            $expense,
-            $prevExpense,
-            $deltaPrevPct,
-            $budget,
-            $byCategory,
-            $byEntity
-        );
 
         $top3Cat = 0.0;
         foreach (array_slice($byCategory['values'], 0, 3) as $v) {
@@ -163,7 +155,6 @@ final class ExpenseAnalysisService
             'by_category_month' => $byCategoryMonth,
             'top_concepts' => $topConcepts,
             'split_budget' => $splitBudget,
-            'alerts' => $alerts,
         ];
     }
 
@@ -747,61 +738,5 @@ final class ExpenseAnalysisService
             'median' => $median,
             'max' => max($amounts),
         ];
-    }
-
-    /**
-     * @param array{labels:list<string>,values:list<float>} $byCategory
-     * @param array{rows:list<array<string,mixed>>} $byEntity
-     * @param array<string,mixed> $budget
-     * @return list<array{level:string,message:string}>
-     */
-    private static function alerts(
-        float $expense,
-        float $prevExpense,
-        ?float $deltaPrevPct,
-        array $budget,
-        array $byCategory,
-        array $byEntity
-    ): array {
-        $out = [];
-        if ($deltaPrevPct !== null && $deltaPrevPct >= 25) {
-            $out[] = [
-                'level' => 'warn',
-                'message' => 'El gasto subió ' . number_format($deltaPrevPct, 1, ',', '.') . '% vs el período anterior.',
-            ];
-        }
-        if ((int) ($budget['count_pending'] ?? 0) > 0 && (float) ($budget['pending'] ?? 0) > 0.009) {
-            $out[] = [
-                'level' => 'warn',
-                'message' => (int) $budget['count_pending'] . ' presupuesto(s) pendiente(s) en el mes de cierre del rango.',
-            ];
-        }
-        if ($expense > 0.009 && $byCategory['values'] !== []) {
-            $topShare = ((float) $byCategory['values'][0] / $expense) * 100;
-            if ($topShare >= 45) {
-                $out[] = [
-                    'level' => 'info',
-                    'message' => 'La categoría «' . $byCategory['labels'][0] . '» concentra '
-                        . number_format($topShare, 1, ',', '.') . '% del gasto.',
-                ];
-            }
-        }
-        if (count($byEntity['rows']) >= 2) {
-            $top = (float) ($byEntity['rows'][0]['amount'] ?? 0);
-            if ($expense > 0.009 && ($top / $expense) >= 0.6) {
-                $out[] = [
-                    'level' => 'info',
-                    'message' => ($byEntity['rows'][0]['name'] ?? 'Una entidad')
-                        . ' concentra la mayor parte del gasto del período.',
-                ];
-            }
-        }
-        if ($prevExpense < 0.01 && $expense > 0.009) {
-            $out[] = [
-                'level' => 'info',
-                'message' => 'No había egresos en el período anterior comparable.',
-            ];
-        }
-        return $out;
     }
 }

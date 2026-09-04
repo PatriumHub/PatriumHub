@@ -112,107 +112,144 @@ $chartPayload = [
         · proyección <?= e((string) ($analysis['proj_year'] ?? '')) ?>.
     </p>
 
-    <?php if (!empty($analysis['alerts'])): ?>
-        <div class="gastos-alerts">
-            <?php foreach ($analysis['alerts'] as $al): ?>
-                <div class="alert alert-<?= e(($al['level'] ?? '') === 'warn' ? 'warn' : 'success') ?>">
-                    <?= e((string) ($al['message'] ?? '')) ?>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
+    <?php
+    $available = (float) ($k['available_est'] ?? 0);
+    $availableTone = $available >= 0 ? 'tone-green' : 'tone-rose';
+    ?>
 
-    <div class="stat-row">
-        <div class="stat tone-rose">
-            <span class="stat-label">Total gastado</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['expense'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted"><?= (int) ($k['tx_count'] ?? 0) ?> movimiento(s)</span>
-        </div>
-        <div class="stat tone-coral">
-            <span class="stat-label">Promedio diario</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['avg_daily'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted">Semanal <?= $hide ? '••••' : e(money($k['avg_weekly'] ?? 0, $currency)) ?></span>
-        </div>
-        <div class="stat tone-amber">
-            <span class="stat-label">Vs período anterior</span>
-            <span class="stat-value <?= e($deltaClass((float) ($k['delta_prev'] ?? 0))) ?>">
-                <?= $hide ? '••••' : e((($k['delta_prev'] ?? 0) >= 0 ? '+' : '') . money($k['delta_prev'] ?? 0, $currency)) ?>
-            </span>
-            <span class="stat-hint muted"><?= e($fmtPct($k['delta_prev_pct'] ?? null)) ?></span>
-        </div>
-        <div class="stat tone-violet">
-            <span class="stat-label">Vs mismo lapso año ant.</span>
-            <span class="stat-value <?= e($deltaClass((float) ($k['delta_yoy'] ?? 0))) ?>">
-                <?= $hide ? '••••' : e((($k['delta_yoy'] ?? 0) >= 0 ? '+' : '') . money($k['delta_yoy'] ?? 0, $currency)) ?>
-            </span>
-            <span class="stat-hint muted"><?= e($fmtPct($k['delta_yoy_pct'] ?? null)) ?></span>
+    <div class="kpi-block">
+        <h2 class="kpi-block-title">Gasto del período</h2>
+        <div class="stat-row">
+            <div class="stat tone-rose">
+                <span class="stat-label">Total gastado</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['expense'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted"><?= (int) ($k['tx_count'] ?? 0) ?> movimiento(s)</span>
+            </div>
+            <div class="stat tone-coral">
+                <span class="stat-label">Promedio diario</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['avg_daily'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Semanal <?= $hide ? '••••' : e(money($k['avg_weekly'] ?? 0, $currency)) ?></span>
+            </div>
+            <div class="stat tone-amber">
+                <span class="stat-label">Vs período anterior</span>
+                <span class="stat-value <?= e($deltaClass((float) ($k['delta_prev'] ?? 0))) ?>">
+                    <?= $hide ? '••••' : e((($k['delta_prev'] ?? 0) >= 0 ? '+' : '') . money($k['delta_prev'] ?? 0, $currency)) ?>
+                </span>
+                <span class="stat-hint muted"><?= e($fmtPct($k['delta_prev_pct'] ?? null)) ?></span>
+            </div>
+            <div class="stat tone-violet">
+                <span class="stat-label">Vs mismo lapso año ant.</span>
+                <span class="stat-value <?= e($deltaClass((float) ($k['delta_yoy'] ?? 0))) ?>">
+                    <?= $hide ? '••••' : e((($k['delta_yoy'] ?? 0) >= 0 ? '+' : '') . money($k['delta_yoy'] ?? 0, $currency)) ?>
+                </span>
+                <span class="stat-hint muted"><?= e($fmtPct($k['delta_yoy_pct'] ?? null)) ?></span>
+            </div>
         </div>
     </div>
 
-    <div class="stat-row mt">
-        <div class="stat tone-blue">
-            <span class="stat-label">Carga de egresos</span>
-            <span class="stat-value"><?= $hide ? '••••' : e($fmtPct($k['burden_pct'] ?? null)) ?></span>
-            <span class="stat-hint muted">Gastos ÷ ingresos del período</span>
-        </div>
-        <div class="stat tone-teal">
-            <span class="stat-label">Ingresos del período</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['income'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted">Disponible est. <?= $hide ? '••••' : e(money($k['available_est'] ?? 0, $currency)) ?></span>
-        </div>
-        <div class="stat tone-green">
-            <span class="stat-label">Presupuesto del mes</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_planned'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted">Pagado <?= e($fmtPct($k['budget_exec_pct'] ?? null)) ?></span>
-        </div>
-        <div class="stat tone-amber">
-            <span class="stat-label">Pendiente / omitido</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_pending'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted">Omitido <?= $hide ? '••••' : e(money($k['budget_skipped'] ?? 0, $currency)) ?></span>
-        </div>
-    </div>
-
-    <div class="stat-row mt">
-        <div class="stat tone-violet">
-            <span class="stat-label">Proyectado (prorrateo)</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['projected_period'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted">Año <?= e((string) ($analysis['proj_year'] ?? '')) ?>: <?= $hide ? '••••' : e(money($k['projected_annual'] ?? 0, $currency)) ?></span>
-        </div>
-        <div class="stat tone-rose">
-            <span class="stat-label">Real vs proyectado</span>
-            <span class="stat-value <?= e($deltaClass((float) ($k['vs_proj_delta'] ?? 0))) ?>">
-                <?= $hide ? '••••' : e((($k['vs_proj_delta'] ?? 0) >= 0 ? '+' : '') . money($k['vs_proj_delta'] ?? 0, $currency)) ?>
-            </span>
-            <span class="stat-hint muted"><?= e($fmtPct($k['vs_proj_pct'] ?? null)) ?></span>
-        </div>
-        <div class="stat tone-blue">
-            <span class="stat-label">Ticket promedio</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['ticket_avg'] ?? 0, $currency)) ?></span>
-            <span class="stat-hint muted">Mediana <?= $hide ? '••••' : e(money($k['ticket_median'] ?? 0, $currency)) ?></span>
-        </div>
-        <div class="stat tone-coral">
-            <span class="stat-label">Concentración top 3</span>
-            <span class="stat-value"><?= $hide ? '••••' : e($fmtPct($k['concentration_top3_pct'] ?? null)) ?></span>
-            <span class="stat-hint muted">Máx. movimiento <?= $hide ? '••••' : e(money($k['ticket_max'] ?? 0, $currency)) ?></span>
+    <div class="kpi-block">
+        <h2 class="kpi-block-title">Ingresos y resultado</h2>
+        <div class="stat-row">
+            <div class="stat tone-teal">
+                <span class="stat-label">Ingresos del período</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['income'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Cobros e ingresos</span>
+            </div>
+            <div class="stat tone-rose">
+                <span class="stat-label">Egresos del período</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['expense'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Gastos y pagos</span>
+            </div>
+            <div class="stat tone-blue">
+                <span class="stat-label">Carga de egresos</span>
+                <span class="stat-value"><?= $hide ? '••••' : e($fmtPct($k['burden_pct'] ?? null)) ?></span>
+                <span class="stat-hint muted">Egresos ÷ ingresos</span>
+            </div>
+            <div class="stat <?= e($availableTone) ?>">
+                <span class="stat-label">Queda</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($available, $currency)) ?></span>
+                <span class="stat-hint muted">Ingresos − egresos</span>
+            </div>
         </div>
     </div>
 
-    <div class="stat-row cols-3 mt">
-        <div class="stat tone-teal">
-            <span class="stat-label">Personas</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['people_expense'] ?? 0, $currency)) ?></span>
+    <div class="kpi-block">
+        <h2 class="kpi-block-title">Presupuesto del mes</h2>
+        <div class="stat-row">
+            <div class="stat tone-green">
+                <span class="stat-label">Planificado</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_planned'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Mes <?= e((string) ($analysis['budget_period'] ?? '')) ?></span>
+            </div>
+            <div class="stat tone-teal">
+                <span class="stat-label">Pagado</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_paid'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted"><?= e($fmtPct($k['budget_exec_pct'] ?? null)) ?> del plan</span>
+            </div>
+            <div class="stat tone-amber">
+                <span class="stat-label">Pendiente</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_pending'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted"><?= (int) ($k['budget_count_pending'] ?? 0) ?> ítem(s)</span>
+            </div>
+            <div class="stat tone-coral">
+                <span class="stat-label">Omitido</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_skipped'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">No se paga este mes</span>
+            </div>
         </div>
-        <div class="stat tone-blue">
-            <span class="stat-label">Empresas</span>
-            <span class="stat-value"><?= $hide ? '••••' : e(money($k['company_expense'] ?? 0, $currency)) ?></span>
+    </div>
+
+    <div class="kpi-block">
+        <h2 class="kpi-block-title">Proyección</h2>
+        <div class="stat-row cols-2">
+            <div class="stat tone-violet">
+                <span class="stat-label">Proyectado (prorrateo)</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['projected_period'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Año <?= e((string) ($analysis['proj_year'] ?? '')) ?>: <?= $hide ? '••••' : e(money($k['projected_annual'] ?? 0, $currency)) ?></span>
+            </div>
+            <div class="stat tone-rose">
+                <span class="stat-label">Real vs proyectado</span>
+                <span class="stat-value <?= e($deltaClass((float) ($k['vs_proj_delta'] ?? 0))) ?>">
+                    <?= $hide ? '••••' : e((($k['vs_proj_delta'] ?? 0) >= 0 ? '+' : '') . money($k['vs_proj_delta'] ?? 0, $currency)) ?>
+                </span>
+                <span class="stat-hint muted"><?= e($fmtPct($k['vs_proj_pct'] ?? null)) ?></span>
+            </div>
         </div>
-        <div class="stat tone-amber">
-            <span class="stat-label">De presupuesto / libres</span>
-            <span class="stat-value" style="font-size:1.15rem">
-                <?= $hide ? '••••' : e(money($k['budget_linked'] ?? 0, $currency)) ?>
-                <span class="muted">/</span>
-                <?= $hide ? '••••' : e(money($k['budget_free'] ?? 0, $currency)) ?>
-            </span>
+    </div>
+
+    <div class="kpi-block">
+        <h2 class="kpi-block-title">Perfil del gasto</h2>
+        <div class="stat-row">
+            <div class="stat tone-blue">
+                <span class="stat-label">Ticket promedio</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['ticket_avg'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Mediana <?= $hide ? '••••' : e(money($k['ticket_median'] ?? 0, $currency)) ?></span>
+            </div>
+            <div class="stat tone-coral">
+                <span class="stat-label">Concentración top 3</span>
+                <span class="stat-value"><?= $hide ? '••••' : e($fmtPct($k['concentration_top3_pct'] ?? null)) ?></span>
+                <span class="stat-hint muted">Máx. movimiento <?= $hide ? '••••' : e(money($k['ticket_max'] ?? 0, $currency)) ?></span>
+            </div>
+            <div class="stat tone-teal">
+                <span class="stat-label">Personas</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['people_expense'] ?? 0, $currency)) ?></span>
+            </div>
+            <div class="stat tone-blue">
+                <span class="stat-label">Empresas</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['company_expense'] ?? 0, $currency)) ?></span>
+            </div>
+        </div>
+        <div class="stat-row cols-2 mt-sm">
+            <div class="stat tone-amber">
+                <span class="stat-label">De presupuesto</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_linked'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Egresos ligados a plantilla</span>
+            </div>
+            <div class="stat tone-violet">
+                <span class="stat-label">Libres</span>
+                <span class="stat-value"><?= $hide ? '••••' : e(money($k['budget_free'] ?? 0, $currency)) ?></span>
+                <span class="stat-hint muted">Egresos cargados a mano</span>
+            </div>
         </div>
     </div>
 

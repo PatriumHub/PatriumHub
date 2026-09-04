@@ -12,8 +12,9 @@ return [
     // Legacy opcional: la clave de cifrado real vive en storage/app.key (Configuración).
     'key' => (string) patrium_env('APP_KEY', ''),
     'session_name' => (string) patrium_env('SESSION_NAME', 'patriumhub_session'),
-    // Cookie lifetime (seconds). Idle timeout can be shorter via SESSION_IDLE.
-    'session_lifetime' => (int) patrium_env('SESSION_LIFETIME', '28800'),
-    'session_idle' => (int) patrium_env('SESSION_IDLE', '7200'),
+    // Cookie + idle (seconds). Por defecto 24 h: la ventana se renueva en cada visita;
+    // si no vuelve dentro de ese lapso, la sesión se cierra.
+    'session_lifetime' => (int) patrium_env('SESSION_LIFETIME', '86400'),
+    'session_idle' => (int) patrium_env('SESSION_IDLE', '86400'),
     'timezone' => 'America/Argentina/Buenos_Aires',
 ];

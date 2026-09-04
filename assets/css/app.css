@@ -2652,12 +2652,23 @@ button.fp-sheet-tab.is-active {
 }
 .obj-create-form { margin: 0; }
 
-.gastos-alerts {
-    display: grid;
-    gap: 0.5rem;
-    margin: 0 0 1rem;
+.gastos-page .kpi-block {
+    margin: 0.85rem 0 0;
 }
-.gastos-alerts .alert { margin: 0; }
+.gastos-page .kpi-block + .kpi-block {
+    margin-top: 1.35rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+}
+.gastos-page .kpi-block-title {
+    margin: 0 0 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+.gastos-page .stat-row.mt-sm { margin-top: 0.55rem; }
 .gastos-page .stat-row.mt { margin-top: 0.75rem; }
 
 /* ?? Theme toggle (misma l?gica que jpromanonet/website) ?? */
@@ -3175,14 +3186,6 @@ button.fp-sheet-tab.is-active {
     color: var(--accent);
 }
 
-.report-subhead {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 1rem;
-    margin: 1rem 0 0.4rem;
-    font-size: 0.95rem;
-}
 .report-chart {
     position: relative;
     margin: 0.6rem 0 1rem;
@@ -3214,7 +3217,6 @@ button.fp-sheet-tab.is-active {
 }
 
 @media print {
-    .report-subhead { break-after: avoid; page-break-after: avoid; }
     .report-chart { break-inside: avoid; page-break-inside: avoid; }
     .report-chart canvas { max-width: 100% !important; }
 }
@@ -3255,10 +3257,7 @@ button.fp-sheet-tab.is-active {
     color: var(--muted);
     white-space: nowrap;
 }
-.report-doc .table .row-child.is-future > td { opacity: 0.82; }
-.report-doc .table .row-child.is-future .line-note { font-style: italic; }
 
 @media print {
     .report-doc .table .line-note { color: #555 !important; }
-    .report-doc .table .row-child.is-future > td { opacity: 1; }
 }
