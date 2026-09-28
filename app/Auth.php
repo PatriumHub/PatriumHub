@@ -16,8 +16,15 @@ final class Auth
             $lifetime = 300;
         }
 
-        // Que el GC del servidor no borre el archivo de sesión antes que expire la cookie.
+        // Que el GC del servidor no borre el archivo de sesiÃ³n antes que expire la cookie.
         ini_set('session.gc_maxlifetime', (string) $lifetime);
+        $lifetime = max(86400, $lifetime);
+        $savePath = self::ensureSessionSavePath();
+        if ($savePath !== null) {
+            session_save_path($savePath);
+        }
+        ini_set('session.gc_maxlifetime', (string) max($lifetime, isset($idle) ? (int) $idle : $lifetime));
+        ini_set('session.cookie_lifetime', (string) $lifetime);
 
         session_name($name);
         session_set_cookie_params([
@@ -158,22 +165,22 @@ final class Auth
     {
         self::requireLogin();
         if (!self::canWrite()) {
-            flash('error', 'Tu usuario es de solo lectura: no podés crear, editar ni borrar.');
+            flash('error', 'Tu usuario es de solo lectura: no podÃ©s crear, editar ni borrar.');
             redirect(self::homePath());
         }
     }
 
-    /** Secciones de administración / operación (dashboard, ABMs globales, etc.). */
+    /** Secciones de administraciÃ³n / operaciÃ³n (dashboard, ABMs globales, etc.). */
     public static function requireAdminArea(): void
     {
         self::requireLogin();
         if (!self::isAdmin()) {
-            flash('error', 'No tenés acceso a esa sección.');
+            flash('error', 'No tenÃ©s acceso a esa secciÃ³n.');
             redirect(self::homePath());
         }
     }
 
-    /** Recarga nombre/email/rol desde BD a la sesión. */
+    /** Recarga nombre/email/rol desde BD a la sesiÃ³n. */
     public static function refreshSessionUser(): void
     {
         $user = self::user();
@@ -226,9 +233,9 @@ final class Auth
     }
 
     /**
-     * Cierra la sesión si pasó más de `$idleSeconds` sin actividad.
+     * Cierra la sesiÃ³n si pasÃ³ mÃ¡s de `$idleSeconds` sin actividad.
      * Si sigue activa, renueva `_last_activity` y la cookie para que el plazo
-     * de 24 h corra desde la última visita (no desde el login original).
+     * de 24 h corra desde la Ãºltima visita (no desde el login original).
      */
     private static function enforceIdleTimeout(int $idleSeconds, int $cookieLifetime): void
     {
@@ -244,7 +251,7 @@ final class Auth
         self::refreshSessionCookie($cookieLifetime);
     }
 
-    /** Reenvía la cookie de sesión con expires renovado (ventana deslizante). */
+    /** ReenvÃ­a la cookie de sesiÃ³n con expires renovado (ventana deslizante). */
     private static function refreshSessionCookie(int $lifetime): void
     {
         if ($lifetime <= 0 || session_status() !== PHP_SESSION_ACTIVE) {
@@ -291,5 +298,30 @@ final class Auth
     private static function throttleKey(): string
     {
         return substr(hash('sha256', (string) ($_SERVER['REMOTE_ADDR'] ?? 'cli')), 0, 32);
+    }
+
+    /** Carpeta propia: el tmp compartido borra sesiones a ~24 min (gc=1440). */
+    private static function ensureSessionSavePath(): ?string
+    {
+        $candidates = [
+            dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'sessions',
+            rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'patrium_sessions',
+        ];
+        foreach ($candidates as $dir) {
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0777, true);
+            }
+            if (!is_dir($dir)) {
+                continue;
+            }
+            @chmod($dir, 0777);
+            $probe = $dir . DIRECTORY_SEPARATOR . '.write';
+            if (@file_put_contents($probe, '1') === false) {
+                continue;
+            }
+            @unlink($probe);
+            return $dir;
+        }
+        return null;
     }
 }
