@@ -107,6 +107,7 @@ final class Catalog
             ['Celular', 'expense'],
             ['Alquiler/es', 'expense'],
             ['Medicación & Farmacia', 'expense'],
+            ['Familia', 'expense'],
         ];
         $pdo = Database::pdo();
         $check = $pdo->prepare('SELECT id FROM transaction_categories WHERE name = :n LIMIT 1');
